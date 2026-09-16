@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encrypted Group Chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>GroupChat <span>Firebase</span></h1>
+      <div class="server-input-area">
+        <input type="text" id="serverCodeInput" placeholder="Enter server code" value="demo-room">
+        <button id="joinBtn">Join</button>
+      </div>
+      <div class="status-badge">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">disconnected</span>
+      </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+      <div class="empty-state" id="emptyState">
+        <span>💬</span>
+        <p>Join a server code to start chatting</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+      <label class="file-label" id="fileLabel">
+        Media
+        <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
+      </label>
+      <button class="send-btn" id="sendBtn" disabled>Send</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
