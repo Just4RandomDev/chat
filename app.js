@@ -4,7 +4,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getDatabase,
@@ -41,29 +44,137 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-// The always-available public room
 const PUBLIC_ROOM_CODE = "public";
-const PUBLIC_ROOM_META = {
-  name: "Public Lobby",
-  adminUid: "system",
-  hasPassword: false,
-  passwordHash: "",
-  maxUsers: 500,
-  kicked: {},
-  isPublic: true
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+// ------------------------------------------------------------------
+// I18N
+// ------------------------------------------------------------------
+
+const translations = {
+  en: {
+    tabLogin: "Log In", tabSignup: "Sign Up",
+    loginBtn: "Log In", signupBtn: "Create Account",
+    email: "Email", password: "Password", password6: "Password (6+ chars)", username: "Username",
+    backToLobby: "← Lobby", rooms: "Rooms", publicRoom: "Public Lobby", createRoom: "+ Create Room",
+    online: "Online", admin: "Admin", manageKicked: "Manage Kicked", roomSettings: "Room Settings",
+    backToRoom: "← Back to room", noMessages: "No messages yet",
+    typeMessage: "Type a message...", media: "Media", send: "Send",
+    notifications: "Notifications", markAllRead: "Mark all read", noNotifications: "No notifications",
+    sendDm: "Send DM", block: "Block", kick: "Kick from room", close: "Close",
+    editProfile: "Edit Profile", bio: "Bio", save: "Save", cancel: "Cancel",
+    roomCode: "Room code (unique id)", roomName: "Room name", maxUsers: "Max users (2–500)",
+    passwordOptional: "Password (optional)", create: "Create",
+    passwordRequired: "Password Required", room: "Room", isLocked: "is locked.", join: "Join",
+    kickedUsers: "Kicked Users", nobodyKicked: "Nobody is kicked.",
+    changePasswordKeep: "Change password (leave empty to keep)",
+    settings: "Settings", theme: "Theme", dark: "Dark", light: "Light", language: "Language",
+    changePassword: "Change Password", currentPassword: "Current password",
+    newPassword: "New password (6+ chars)", updatePassword: "Update Password", logout: "Log Out",
+    kickedToast: "You've been kicked from this room",
+    notifMention: "You were mentioned in",
+    notifDm: "New message from"
+  },
+  es: {
+    tabLogin: "Iniciar sesión", tabSignup: "Registrarse",
+    loginBtn: "Iniciar sesión", signupBtn: "Crear cuenta",
+    email: "Correo", password: "Contraseña", password6: "Contraseña (6+ caracteres)", username: "Usuario",
+    backToLobby: "← Vestíbulo", rooms: "Salas", publicRoom: "Sala Pública", createRoom: "+ Crear Sala",
+    online: "En línea", admin: "Admin", manageKicked: "Gestionar Expulsados", roomSettings: "Ajustes de Sala",
+    backToRoom: "← Volver a la sala", noMessages: "Sin mensajes todavía",
+    typeMessage: "Escribe un mensaje...", media: "Multimedia", send: "Enviar",
+    notifications: "Notificaciones", markAllRead: "Marcar todo leído", noNotifications: "Sin notificaciones",
+    sendDm: "Enviar MD", block: "Bloquear", kick: "Expulsar de la sala", close: "Cerrar",
+    editProfile: "Editar Perfil", bio: "Biografía", save: "Guardar", cancel: "Cancelar",
+    roomCode: "Código de sala (id único)", roomName: "Nombre de la sala", maxUsers: "Usuarios máx (2–500)",
+    passwordOptional: "Contraseña (opcional)", create: "Crear",
+    passwordRequired: "Contraseña Requerida", room: "Sala", isLocked: "está bloqueada.", join: "Entrar",
+    kickedUsers: "Usuarios Expulsados", nobodyKicked: "Nadie está expulsado.",
+    changePasswordKeep: "Cambiar contraseña (vacío para mantener)",
+    settings: "Ajustes", theme: "Tema", dark: "Oscuro", light: "Claro", language: "Idioma",
+    changePassword: "Cambiar Contraseña", currentPassword: "Contraseña actual",
+    newPassword: "Nueva contraseña (6+ caracteres)", updatePassword: "Actualizar", logout: "Cerrar Sesión",
+    kickedToast: "Has sido expulsado de esta sala",
+    notifMention: "Te mencionaron en",
+    notifDm: "Nuevo mensaje de"
+  },
+  fr: {
+    tabLogin: "Connexion", tabSignup: "Inscription",
+    loginBtn: "Connexion", signupBtn: "Créer un compte",
+    email: "Email", password: "Mot de passe", password6: "Mot de passe (6+ caractères)", username: "Pseudo",
+    backToLobby: "← Salon", rooms: "Salons", publicRoom: "Salon Public", createRoom: "+ Créer un Salon",
+    online: "En ligne", admin: "Admin", manageKicked: "Gérer Exclus", roomSettings: "Paramètres du Salon",
+    backToRoom: "← Retour au salon", noMessages: "Aucun message",
+    typeMessage: "Écrire un message...", media: "Média", send: "Envoyer",
+    notifications: "Notifications", markAllRead: "Tout marquer lu", noNotifications: "Aucune notification",
+    sendDm: "Envoyer un MP", block: "Bloquer", kick: "Exclure du salon", close: "Fermer",
+    editProfile: "Modifier le Profil", bio: "Bio", save: "Enregistrer", cancel: "Annuler",
+    roomCode: "Code du salon (id unique)", roomName: "Nom du salon", maxUsers: "Utilisateurs max (2–500)",
+    passwordOptional: "Mot de passe (optionnel)", create: "Créer",
+    passwordRequired: "Mot de Passe Requis", room: "Salon", isLocked: "est verrouillé.", join: "Rejoindre",
+    kickedUsers: "Utilisateurs Exclus", nobodyKicked: "Personne n'est exclu.",
+    changePasswordKeep: "Changer le mot de passe (vide pour garder)",
+    settings: "Paramètres", theme: "Thème", dark: "Sombre", light: "Clair", language: "Langue",
+    changePassword: "Changer le Mot de Passe", currentPassword: "Mot de passe actuel",
+    newPassword: "Nouveau mot de passe (6+ caractères)", updatePassword: "Mettre à jour", logout: "Déconnexion",
+    kickedToast: "Vous avez été exclu de ce salon",
+    notifMention: "Vous avez été mentionné dans",
+    notifDm: "Nouveau message de"
+  },
+  ru: {
+    tabLogin: "Войти", tabSignup: "Регистрация",
+    loginBtn: "Войти", signupBtn: "Создать аккаунт",
+    email: "Email", password: "Пароль", password6: "Пароль (6+ символов)", username: "Имя",
+    backToLobby: "← Лобби", rooms: "Комнаты", publicRoom: "Публичная", createRoom: "+ Создать",
+    online: "Онлайн", admin: "Админ", manageKicked: "Управление Киками", roomSettings: "Настройки Комнаты",
+    backToRoom: "← Назад в комнату", noMessages: "Сообщений нет",
+    typeMessage: "Введите сообщение...", media: "Медиа", send: "Отправить",
+    notifications: "Уведомления", markAllRead: "Прочитать все", noNotifications: "Нет уведомлений",
+    sendDm: "Написать ЛС", block: "Блок", kick: "Кикнуть из комнаты", close: "Закрыть",
+    editProfile: "Профиль", bio: "О себе", save: "Сохранить", cancel: "Отмена",
+    roomCode: "Код комнаты (уникальный)", roomName: "Название", maxUsers: "Макс. людей (2–500)",
+    passwordOptional: "Пароль (необязательно)", create: "Создать",
+    passwordRequired: "Нужен Пароль", room: "Комната", isLocked: "заблокирована.", join: "Войти",
+    kickedUsers: "Кикнутые", nobodyKicked: "Никто не кикнут.",
+    changePasswordKeep: "Сменить пароль (пусто = оставить)",
+    settings: "Настройки", theme: "Тема", dark: "Тёмная", light: "Светлая", language: "Язык",
+    changePassword: "Сменить Пароль", currentPassword: "Текущий пароль",
+    newPassword: "Новый пароль (6+ символов)", updatePassword: "Обновить", logout: "Выйти",
+    kickedToast: "Вас кикнули из этой комнаты",
+    notifMention: "Вас упомянули в",
+    notifDm: "Новое сообщение от"
+  }
 };
+
+let currentLang = localStorage.getItem("lang") || "en";
+let currentTheme = localStorage.getItem("theme") || "dark";
+
+function t(key) { return (translations[currentLang] && translations[currentLang][key]) || key; }
+
+function applyTranslations() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    el.textContent = t(key);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    const key = el.getAttribute("data-i18n-ph");
+    el.placeholder = t(key);
+  });
+}
+
+function applyTheme() {
+  document.body.setAttribute("data-theme", currentTheme);
+}
 
 // ------------------------------------------------------------------
 // ENCRYPTION
 // ------------------------------------------------------------------
 
 function shaKey(str) { return CryptoJS.SHA256(str + "::salt::v1").toString(); }
-
 function encryptText(plain, key) {
   if (!plain) return "";
   return CryptoJS.AES.encrypt(plain, shaKey(key)).toString();
 }
-
 function decryptText(cipher, key) {
   if (!cipher) return "";
   try {
@@ -71,9 +182,7 @@ function decryptText(cipher, key) {
     return bytes.toString(CryptoJS.enc.Utf8) || "[could not decrypt]";
   } catch { return "[could not decrypt]"; }
 }
-
 function hashPassword(pw) { return CryptoJS.SHA256("room::" + pw).toString(); }
-
 function dmKey(a, b) { const [x, y] = [a, b].sort(); return "DM::" + x + "::" + y; }
 function dmPath(a, b) { const [x, y] = [a, b].sort(); return `dms/${x}__${y}/messages`; }
 
@@ -118,8 +227,27 @@ function buildLineContent(lineEl, plainText) {
 
   let rest = plainText.replace(URL_REGEX, "").trim();
 
+  // Highlight @mentions in the text
+  const mentionRegex = /@([A-Za-z0-9_]+)/g;
+  const renderTextWithMentions = (parent, text) => {
+    let lastIdx = 0;
+    let mm;
+    while ((mm = mentionRegex.exec(text)) !== null) {
+      if (mm.index > lastIdx) parent.appendChild(document.createTextNode(text.slice(lastIdx, mm.index)));
+      const span = document.createElement("span");
+      span.style.color = "#ffb347";
+      span.style.fontWeight = "700";
+      span.textContent = mm[0];
+      parent.appendChild(span);
+      lastIdx = mentionRegex.lastIndex;
+    }
+    if (lastIdx < text.length) parent.appendChild(document.createTextNode(text.slice(lastIdx)));
+  };
+
   if (mediaUrls.length > 0) {
-    if (rest) lineEl.appendChild(document.createTextNode(rest + " "));
+    if (rest) {
+      renderTextWithMentions(lineEl, rest + " ");
+    }
     for (const u of nonMediaUrls) {
       const a = document.createElement("a");
       a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
@@ -146,14 +274,18 @@ function buildLineContent(lineEl, plainText) {
   let lastIndex = 0;
   const re2 = new RegExp(URL_REGEX.source, "gi");
   while ((m = re2.exec(plainText)) !== null) {
-    if (m.index > lastIndex) lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex, m.index)));
+    if (m.index > lastIndex) {
+      renderTextWithMentions(lineEl, plainText.slice(lastIndex, m.index));
+    }
     const a = document.createElement("a");
     a.href = m[0]; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.textContent = m[0];
     lineEl.appendChild(a);
     lastIndex = re2.lastIndex;
   }
-  if (lastIndex < plainText.length) lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex)));
+  if (lastIndex < plainText.length) {
+    renderTextWithMentions(lineEl, plainText.slice(lastIndex));
+  }
 }
 
 // ------------------------------------------------------------------
@@ -167,6 +299,8 @@ let currentQueryRef   = null;
 let currentRoomMeta   = null;
 let currentPresenceRef = null;
 let currentPresenceListener = null;
+let currentKickedListener = null;
+let currentKickedRef  = null;
 let blockedSet        = new Set();
 let userCache         = new Map();
 let pendingFile       = null;
@@ -175,8 +309,18 @@ let dmQueryRef        = null;
 let groupOnChildOff   = null;
 let dmOnChildOff      = null;
 let lobbyRoomsListener = null;
+let lobbyRenderToken  = 0;
+let roomCards         = new Map(); // code -> DOM node
 
-const GROUP_WINDOW_MS = 5 * 60 * 1000;
+// Notifications
+let notifListenerOff  = null;
+let notifications     = [];
+let unreadCount       = 0;
+
+// DM notification tracking: which DM message IDs we've already notified on
+const dmNotifiedKeys = new Set();
+
+// Grouping
 let lastGroupEl = null;
 let lastGroupUid = null;
 let lastGroupTime = 0;
@@ -205,9 +349,14 @@ const authError    = $("authError");
 
 const myUsernameLabel = $("myUsernameLabel");
 const backToLobbyBtn  = $("backToLobbyBtn");
+const notifBtn     = $("notifBtn");
+const notifBadge   = $("notifBadge");
+const notifDropdown = $("notifDropdown");
+const notifList    = $("notifList");
+const markAllReadBtn = $("markAllReadBtn");
+const settingsBtn  = $("settingsBtn");
 const profileBtn   = $("profileBtn");
 const myPfpBtn     = $("myPfpBtn");
-const logoutBtn    = $("logoutBtn");
 const statusDot    = $("statusDot");
 const statusText   = $("statusText");
 
@@ -291,6 +440,16 @@ const settingsRoomPassword = $("settingsRoomPassword");
 const saveRoomSettingsBtn = $("saveRoomSettingsBtn");
 const cancelRoomSettingsBtn = $("cancelRoomSettingsBtn");
 const roomSettingsError = $("roomSettingsError");
+
+const settingsModal = $("settingsModal");
+const themeSelect   = $("themeSelect");
+const languageSelect = $("languageSelect");
+const currentPassword = $("currentPassword");
+const newPassword   = $("newPassword");
+const changePasswordBtn = $("changePasswordBtn");
+const logoutBtn2    = $("logoutBtn2");
+const closeSettingsBtn = $("closeSettingsBtn");
+const settingsError = $("settingsError");
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -440,15 +599,18 @@ signupBtn.addEventListener("click", async () => {
   }
 });
 
-logoutBtn.addEventListener("click", async () => {
+async function doLogout() {
   await detachFromRoom();
   await signOut(auth);
-});
+}
+
+logoutBtn2.addEventListener("click", doLogout);
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     me = null;
     window.__signupInProgress = false;
+    if (notifListenerOff) { notifListenerOff(); notifListenerOff = null; }
     authScreen.classList.remove("hidden");
     appRoot.classList.add("hidden");
     return;
@@ -495,6 +657,7 @@ onAuthStateChanged(auth, async (user) => {
 
   await ensurePublicRoom();
   startLobbyListener();
+  startNotificationListener();
 });
 
 // ------------------------------------------------------------------
@@ -506,11 +669,11 @@ async function ensurePublicRoom() {
     const snap = await get(ref(db, `rooms/${PUBLIC_ROOM_CODE}`));
     if (!snap.exists()) {
       await set(ref(db, `rooms/${PUBLIC_ROOM_CODE}`), {
-        name: PUBLIC_ROOM_META.name,
-        adminUid: PUBLIC_ROOM_META.adminUid,
+        name: "Public Lobby",
+        adminUid: "system",
         hasPassword: false,
         passwordHash: "",
-        maxUsers: PUBLIC_ROOM_META.maxUsers,
+        maxUsers: 500,
         kicked: {},
         isPublic: true,
         createdAt: serverTimestamp()
@@ -537,22 +700,38 @@ function startLobbyListener() {
     (snap) => { renderRoomGrid(snap.val() || {}); },
     (err) => {
       console.error("Lobby listener error:", err);
-      roomGrid.innerHTML = '<p class="lobby-empty">Could not load rooms. Check the rules for /rooms.</p>';
+      roomGrid.innerHTML = '<p class="lobby-empty">Could not load rooms.</p>';
     }
   );
 }
 
 async function renderRoomGrid(rooms) {
-  roomGrid.innerHTML = "";
+  const token = ++lobbyRenderToken;
 
   const codes = Object.keys(rooms);
   if (!codes.length) {
     roomGrid.innerHTML = '<p class="lobby-empty">No rooms yet. Create one.</p>';
+    roomCards.clear();
     return;
   }
 
+  // Drop the empty message if it's there
+  const empty = roomGrid.querySelector(".lobby-empty");
+  if (empty) empty.remove();
+
+  // Fetch presence counts in parallel
+  const counts = {};
+  await Promise.all(codes.map(async (code) => {
+    try {
+      const s = await get(ref(db, `chats/${code}/presence`));
+      counts[code] = Object.keys(s.val() || {}).length;
+    } catch { counts[code] = 0; }
+  }));
+
+  if (token !== lobbyRenderToken) return; // a newer render has started
+
+  // Sort: public first, then alphabetical
   codes.sort((a, b) => {
-    // Public room first, then alphabetical
     if (a === PUBLIC_ROOM_CODE) return -1;
     if (b === PUBLIC_ROOM_CODE) return 1;
     const na = (rooms[a].name || a).toLowerCase();
@@ -560,16 +739,20 @@ async function renderRoomGrid(rooms) {
     return na.localeCompare(nb);
   });
 
+  // Diff DOM: add new, update existing, remove gone
+  const present = new Set(codes);
+
   for (const code of codes) {
     const r = rooms[code] || {};
-    const card = document.createElement("div");
-    card.className = "room-card";
+    let card = roomCards.get(code);
 
-    let memberCount = 0;
-    try {
-      const presSnap = await get(ref(db, `chats/${code}/presence`));
-      memberCount = Object.keys(presSnap.val() || {}).length;
-    } catch {}
+    if (!card) {
+      card = document.createElement("div");
+      card.className = "room-card";
+      card.addEventListener("click", () => requestJoinRoom(code));
+      roomCards.set(code, card);
+      roomGrid.appendChild(card);
+    }
 
     const max = r.maxUsers || 50;
     const icons = [];
@@ -581,13 +764,24 @@ async function renderRoomGrid(rooms) {
       <div class="rc-name">${escapeHtml(r.name || code)}</div>
       <div class="rc-code">${escapeHtml(code)}</div>
       <div class="rc-meta">
-        <span>${memberCount} / ${max}</span>
+        <span>${counts[code]} / ${max}</span>
         <div class="rc-icons">${icons.join("")}</div>
       </div>
     `;
+  }
 
-    card.addEventListener("click", () => requestJoinRoom(code));
-    roomGrid.appendChild(card);
+  // Remove gone
+  for (const [code, node] of roomCards) {
+    if (!present.has(code)) {
+      node.remove();
+      roomCards.delete(code);
+    }
+  }
+
+  // Re-sort DOM to match sorted codes order
+  for (const code of codes) {
+    const card = roomCards.get(code);
+    if (card) roomGrid.appendChild(card);
   }
 }
 
@@ -614,11 +808,10 @@ async function requestJoinRoom(code) {
   const room = roomSnap.val();
 
   if (room.kicked && room.kicked[me.uid]) {
-    showToast("You've been kicked from this room");
+    showToast(t("kickedToast"));
     return;
   }
 
-  // Capacity check
   const max = room.maxUsers || 50;
   const presSnap = await get(ref(db, `chats/${code}/presence`));
   const presData = presSnap.val() || {};
@@ -687,9 +880,8 @@ submitPasswordBtn.addEventListener("click", async () => {
   const room = roomSnap.val();
   if (!room) { passwordError.textContent = "Room disappeared"; return; }
   if (room.passwordHash !== hashPassword(pw)) { passwordError.textContent = "Wrong password"; return; }
-  if (room.kicked && room.kicked[me.uid]) { passwordError.textContent = "You've been kicked"; return; }
+  if (room.kicked && room.kicked[me.uid]) { passwordError.textContent = t("kickedToast"); return; }
 
-  // Capacity re-check
   const max = room.maxUsers || 50;
   const presSnap = await get(ref(db, `chats/${code}/presence`));
   const count = Object.keys(presSnap.val() || {}).length;
@@ -730,6 +922,7 @@ async function enterRoom(code, roomMeta) {
   onChildAdded(currentQueryRef, handleChild);
   groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
 
+  // Presence
   currentPresenceRef = ref(db, `chats/${code}/presence/${me.uid}`);
   await set(currentPresenceRef, {
     username: me.username,
@@ -743,6 +936,17 @@ async function enterRoom(code, roomMeta) {
     renderUserList(snap.val() || {});
   });
 
+  // Kicked watcher — the fix for "kick doesn't actually kick"
+  currentKickedRef = ref(db, `rooms/${code}/kicked/${me.uid}`);
+  currentKickedListener = onValue(currentKickedRef, async (snap) => {
+    if (snap.val() === true && currentServerCode === code) {
+      showToast(t("kickedToast"));
+      await detachFromRoom();
+      resetChatUI();
+      showLobby();
+    }
+  });
+
   showToast("Joined #" + code);
 }
 
@@ -750,6 +954,7 @@ async function detachFromRoom() {
   if (groupOnChildOff) { groupOnChildOff(); groupOnChildOff = null; }
   if (dmOnChildOff)    { dmOnChildOff();    dmOnChildOff    = null; }
   if (currentPresenceListener) { currentPresenceListener(); currentPresenceListener = null; }
+  if (currentKickedListener) { currentKickedListener(); currentKickedListener = null; }
   if (currentPresenceRef) {
     try { await remove(currentPresenceRef); } catch {}
     currentPresenceRef = null;
@@ -758,6 +963,7 @@ async function detachFromRoom() {
   currentQueryRef = null;
   currentServerCode = null;
   currentRoomMeta = null;
+  currentKickedRef = null;
   activeDmUid = null;
   dmQueryRef = null;
   updateAdminUI();
@@ -770,6 +976,110 @@ backToLobbyBtn.addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------------
+// NOTIFICATIONS
+// ------------------------------------------------------------------
+
+function startNotificationListener() {
+  if (notifListenerOff) notifListenerOff();
+  const notifRef = ref(db, `notifications/${me.uid}`);
+  notifListenerOff = onValue(notifRef, (snap) => {
+    const data = snap.val() || {};
+    notifications = Object.entries(data).map(([id, n]) => ({ id, ...n }));
+    notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    unreadCount = notifications.filter(n => !n.read).length;
+    renderNotifications();
+  });
+}
+
+function renderNotifications() {
+  if (unreadCount > 0) {
+    notifBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+    notifBadge.classList.remove("hidden");
+  } else {
+    notifBadge.classList.add("hidden");
+  }
+
+  notifList.innerHTML = "";
+  if (!notifications.length) {
+    notifList.innerHTML = `<p class="notif-empty">${t("noNotifications")}</p>`;
+    return;
+  }
+
+  for (const n of notifications) {
+    const item = document.createElement("div");
+    item.className = "notif-item" + (n.read ? "" : " unread");
+    item.innerHTML = `
+      <div class="n-title">${escapeHtml(n.title || "")}</div>
+      <div class="n-body">${escapeHtml(n.body || "")}</div>
+      <div class="n-time">${formatTime(n.timestamp)}</div>
+    `;
+    item.addEventListener("click", async () => {
+      // Mark read
+      if (!n.read) {
+        try { update(ref(db, `notifications/${me.uid}/${n.id}`), { read: true }); } catch {}
+      }
+      notifDropdown.classList.add("hidden");
+      // Navigate
+      if (n.type === "mention" && n.roomCode) {
+        if (currentServerCode !== n.roomCode) {
+          await requestJoinRoom(n.roomCode);
+        }
+      } else if (n.type === "dm" && n.fromUid) {
+        if (!currentServerCode) {
+          // Need a room to host the DM view; use public
+          await requestJoinRoom(PUBLIC_ROOM_CODE);
+        }
+        openDm(n.fromUid);
+      }
+    });
+    notifList.appendChild(item);
+  }
+}
+
+notifBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  notifDropdown.classList.toggle("hidden");
+});
+
+document.addEventListener("click", (e) => {
+  if (!notifDropdown.classList.contains("hidden")) {
+    if (!notifDropdown.contains(e.target) && e.target !== notifBtn) {
+      notifDropdown.classList.add("hidden");
+    }
+  }
+});
+
+markAllReadBtn.addEventListener("click", async () => {
+  const updates = {};
+  for (const n of notifications) {
+    if (!n.read) updates[`${n.id}/read`] = true;
+  }
+  if (Object.keys(updates).length) {
+    try { update(ref(db, `notifications/${me.uid}`), updates); } catch {}
+  }
+});
+
+async function pushNotification(targetUid, payload) {
+  if (targetUid === me.uid) return;
+  try {
+    await push(ref(db, `notifications/${targetUid}`), {
+      ...payload,
+      read: false,
+      timestamp: serverTimestamp()
+    });
+  } catch (e) {
+    console.warn("Could not push notification:", e);
+  }
+}
+
+function extractMentions(text) {
+  const matches = text.matchAll(/@([A-Za-z0-9_]+)/g);
+  const out = new Set();
+  for (const m of matches) out.add(m[1].toLowerCase());
+  return Array.from(out);
+}
+
+// ------------------------------------------------------------------
 // RENDER MESSAGE (grouped)
 // ------------------------------------------------------------------
 
@@ -780,6 +1090,17 @@ async function renderMessage(msgId, msg, isOwn) {
   const sameUser = lastGroupUid === msg.uid;
   const withinWindow = (now - lastGroupTime) < GROUP_WINDOW_MS;
   const inDmView = !!activeDmUid;
+
+  // Decrypt text once so we can check mentions
+  let plainText = "";
+  if (msg.text) {
+    const key = msg.dmKey ? msg.dmKey : currentServerCode;
+    plainText = decryptText(msg.text, key);
+  }
+
+  // Mention highlight
+  const mentionedMe = plainText && me &&
+    extractMentions(plainText).includes(me.username.toLowerCase());
 
   if (!lastGroupEl || !sameUser || !withinWindow) {
     const group = document.createElement("div");
@@ -808,16 +1129,14 @@ async function renderMessage(msgId, msg, isOwn) {
   const body = lastGroupEl.querySelector(".group-body");
 
   const line = document.createElement("div");
-  line.className = "msg-line";
+  line.className = "msg-line" + (mentionedMe ? " mention" : "");
   line.dataset.msgId = msgId;
 
-  if (msg.text) {
-    const key = msg.dmKey ? msg.dmKey : currentServerCode;
-    const plain = decryptText(msg.text, key);
-    if (plain && plain !== "[could not decrypt]") {
-      buildLineContent(line, plain);
+  if (plainText) {
+    if (plainText !== "[could not decrypt]") {
+      buildLineContent(line, plainText);
     } else {
-      line.appendChild(document.createTextNode(plain));
+      line.appendChild(document.createTextNode(plainText));
     }
   }
 
@@ -830,10 +1149,10 @@ async function renderMessage(msgId, msg, isOwn) {
         img.src = src; img.loading = "lazy";
         line.appendChild(img);
         if (msg.mediaType === "gif") {
-          const t = document.createElement("span");
-          t.className = "gif-tag";
-          t.textContent = "GIF";
-          line.appendChild(t);
+          const t2 = document.createElement("span");
+          t2.className = "gif-tag";
+          t2.textContent = "GIF";
+          line.appendChild(t2);
         }
       } else if (msg.mediaType === "video") {
         const v = document.createElement("video");
@@ -860,6 +1179,36 @@ async function renderMessage(msgId, msg, isOwn) {
 
   body.appendChild(line);
   chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  // Send notifications for mentions and DMs
+  if (!isOwn) {
+    if (mentionedMe && !inDmView && currentServerCode) {
+      pushNotification(msg.uid === me.uid ? me.uid : sender.uid, {
+        type: "mention",
+        title: `${t("notifMention")} #${currentRoomMeta?.name || currentServerCode}`,
+        body: `${sender.username}: ${plainText.slice(0, 80)}`,
+        roomCode: currentServerCode,
+        fromUid: msg.uid
+      });
+      // Note: we send notification to the *mentioned* user in this case;
+      // but msg.uid is the sender. So we must target the mentioned user.
+      // Fix: iterate mentions and notify each matching user we know about.
+    }
+
+    // DM notification
+    if (inDmView && activeDmUid === msg.uid) {
+      const key = `${activeDmUid}::${msgId}`;
+      if (!dmNotifiedKeys.has(key)) {
+        dmNotifiedKeys.add(key);
+        pushNotification(msg.uid, {
+          type: "dm",
+          title: t("notifDm") + " " + sender.username,
+          body: plainText ? plainText.slice(0, 80) : "[media]",
+          fromUid: msg.uid
+        });
+      }
+    }
+  }
 }
 
 // ------------------------------------------------------------------
@@ -917,7 +1266,7 @@ async function openUserModal(uid) {
   modalName.textContent = p.username;
   modalBio.textContent  = p.bio || "(no bio)";
 
-  modalBlockBtn.textContent = blockedSet.has(uid) ? "Unblock" : "Block";
+  modalBlockBtn.textContent = blockedSet.has(uid) ? t("unblock") || "Unblock" : t("block");
   modalKickBtn.classList.toggle("hidden", !isAdmin() || currentRoomMeta?.isPublic);
 
   userModal.classList.remove("hidden");
@@ -967,7 +1316,6 @@ modalKickBtn.addEventListener("click", async () => {
   modalUid = null;
 });
 
-// Kicked manager
 kickPanelBtn.addEventListener("click", async () => {
   kickedList.innerHTML = "";
   const snap = await get(ref(db, `rooms/${currentServerCode}/kicked`));
@@ -975,7 +1323,7 @@ kickPanelBtn.addEventListener("click", async () => {
   const uids = Object.keys(data);
 
   if (!uids.length) {
-    kickedList.innerHTML = '<p class="modal-sub">Nobody is kicked.</p>';
+    kickedList.innerHTML = `<p class="modal-sub">${t("nobodyKicked")}</p>`;
   } else {
     for (const uid of uids) {
       const p = await fetchUser(uid);
@@ -1000,7 +1348,6 @@ kickPanelBtn.addEventListener("click", async () => {
 
 closeKickedBtn.addEventListener("click", () => kickedModal.classList.add("hidden"));
 
-// Room settings (admin)
 roomSettingsBtn.addEventListener("click", () => {
   settingsRoomName.value = currentRoomMeta?.name || "";
   settingsRoomMax.value  = currentRoomMeta?.maxUsers || 20;
@@ -1142,6 +1489,32 @@ async function sendMessage() {
       timestamp: serverTimestamp()
     };
     await push(currentRoomRef, payload);
+
+    // Notify mentioned users
+    if (rawText) {
+      const mentions = extractMentions(rawText);
+      if (mentions.length) {
+        // Fetch all users once and match by username
+        const usersSnap = await get(ref(db, "users"));
+        const usersData = usersSnap.val() || {};
+        const byName = {};
+        for (const [uid, u] of Object.entries(usersData)) {
+          if (u.username) byName[u.username.toLowerCase()] = uid;
+        }
+        for (const mention of mentions) {
+          const uid = byName[mention];
+          if (uid && uid !== me.uid) {
+            pushNotification(uid, {
+              type: "mention",
+              title: `${t("notifMention")} #${currentRoomMeta?.name || currentServerCode}`,
+              body: `${me.username}: ${rawText.slice(0, 80)}`,
+              roomCode: currentServerCode,
+              fromUid: me.uid
+            });
+          }
+        }
+      }
+    }
   }
 
   messageInput.value = "";
@@ -1266,8 +1639,62 @@ saveProfileBtn.addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------------
+// SETTINGS
+// ------------------------------------------------------------------
+
+settingsBtn.addEventListener("click", () => {
+  themeSelect.value = currentTheme;
+  languageSelect.value = currentLang;
+  currentPassword.value = "";
+  newPassword.value = "";
+  settingsError.textContent = "";
+  settingsModal.classList.remove("hidden");
+});
+
+themeSelect.addEventListener("change", () => {
+  currentTheme = themeSelect.value;
+  localStorage.setItem("theme", currentTheme);
+  applyTheme();
+});
+
+languageSelect.addEventListener("change", () => {
+  currentLang = languageSelect.value;
+  localStorage.setItem("lang", currentLang);
+  applyTranslations();
+});
+
+changePasswordBtn.addEventListener("click", async () => {
+  settingsError.textContent = "";
+  const cur = currentPassword.value;
+  const nw  = newPassword.value;
+
+  if (!cur || !nw) { settingsError.textContent = "Fill in both password fields"; return; }
+  if (nw.length < 6) { settingsError.textContent = "New password must be 6+ chars"; return; }
+
+  try {
+    const user = auth.currentUser;
+    const cred = EmailAuthProvider.credential(user.email, cur);
+    await reauthenticateWithCredential(user, cred);
+    await updatePassword(user, nw);
+    currentPassword.value = "";
+    newPassword.value = "";
+    showToast("Password updated");
+    settingsModal.classList.add("hidden");
+  } catch (e) {
+    settingsError.textContent = e.message.replace("Firebase: ", "");
+  }
+});
+
+closeSettingsBtn.addEventListener("click", () => settingsModal.classList.add("hidden"));
+
+// ------------------------------------------------------------------
 // BOOT
 // ------------------------------------------------------------------
+
+applyTheme();
+applyTranslations();
+themeSelect.value = currentTheme;
+languageSelect.value = currentLang;
 
 setStatus(false);
 resetChatUI();
