@@ -1053,6 +1053,10 @@ async function openDm(otherUid) {
   resetDmUI();
   el.dmPanel.classList.remove("hidden");
 
+  el.dmInput.disabled = false;
+  el.dmFileInput.disabled = false;
+  el.dmSendBtn.disabled = false;
+
   const other = await fetchUser(otherUid);
   el.dmHeadTitle.textContent = "DM with " + other.username;
 
@@ -1064,12 +1068,17 @@ async function openDm(otherUid) {
   };
   onChildAdded(state.dmQueryRef, handler);
   state.dmOff = () => off(state.dmQueryRef, "child_added", handler);
+
+  el.dmInput.focus();
 }
 
 function closeDm() {
   state.dmUid = null; state.dmQueryRef = null;
   if (state.dmOff) { state.dmOff(); state.dmOff = null; }
   el.dmPanel.classList.add("hidden");
+  el.dmInput.disabled = true;
+  el.dmFileInput.disabled = true;
+  el.dmSendBtn.disabled = true;
   resetDmUI();
 }
 
