@@ -46,7 +46,9 @@
         <button id="joinBtn">Join</button>
       </div>
 
-      <button class="icon-btn" id="profileBtn" title="My Profile">👤</button>
+      <button class="profile-btn" id="profileBtn" title="My Profile">
+        <img id="myPfpBtn" alt="">
+      </button>
       <button class="icon-btn" id="logoutBtn" title="Log Out">↩</button>
 
       <div class="status-badge">
@@ -60,12 +62,18 @@
       <aside class="side-panel">
         <div class="side-title">Online — <span id="onlineCount">0</span></div>
         <div class="user-list" id="userList"></div>
+
+        <div class="side-title" id="adminPanelTitle" style="display:none;">Admin</div>
+        <div class="side-admin" id="adminPanel" style="display:none;">
+          <button id="kickPanelBtn">Manage Kicked</button>
+        </div>
       </aside>
 
       <div class="chat-column">
 
         <div class="chat-head" id="chatHead">
           <span id="chatHeadTitle"># demo-room</span>
+          <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
           <button class="close-dm hidden" id="closeDmBtn">← Back to room</button>
         </div>
 
@@ -77,12 +85,23 @@
         </div>
 
         <div class="input-area">
-          <input type="text" id="messageInput" placeholder="Type a message..." disabled>
-          <label class="file-label" id="fileLabel">
-            Media
-            <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
-          </label>
-          <button class="send-btn" id="sendBtn" disabled>Send</button>
+          <div class="file-preview hidden" id="filePreview">
+            <img id="filePreviewImg" alt="">
+            <video id="filePreviewVideo" controls class="hidden"></video>
+            <div class="file-preview-info">
+              <span id="filePreviewName"></span>
+              <button id="filePreviewRemove">✕</button>
+            </div>
+          </div>
+
+          <div class="input-row">
+            <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+            <label class="file-label" id="fileLabel">
+              Media
+              <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
+            </label>
+            <button class="send-btn" id="sendBtn" disabled>Send</button>
+          </div>
         </div>
 
       </div>
@@ -102,6 +121,7 @@
       <div class="modal-actions">
         <button id="modalDmBtn">Send DM</button>
         <button id="modalBlockBtn">Block</button>
+        <button id="modalKickBtn" class="danger hidden">Kick from room</button>
         <button class="ghost" id="modalCloseBtn">Close</button>
       </div>
     </div>
@@ -109,22 +129,29 @@
 
   <!-- ============ MODAL: EDIT MY PROFILE ============ -->
   <div class="modal-backdrop hidden" id="profileModal">
-    <div class="modal">
+    <div class="modal profile-modal">
+      <div class="profile-hero">
+        <div class="profile-avatar-wrap">
+          <img class="profile-avatar" id="myProfileAvatar" alt="">
+          <label class="profile-avatar-edit">
+            ✎
+            <input type="file" id="editPfp" accept="image/*">
+          </label>
+        </div>
+        <div class="profile-hero-name" id="profileHeroName">—</div>
+        <div class="profile-hero-email" id="profileHeroEmail">—</div>
+      </div>
+
       <h2>Edit Profile</h2>
 
       <label class="field">
         <span>Username</span>
-        <input type="text" id="editUsername">
+        <input type="text" id="editUsername" maxlength="24">
       </label>
 
       <label class="field">
         <span>Bio</span>
-        <textarea id="editBio" rows="3"></textarea>
-      </label>
-
-      <label class="field">
-        <span>Profile Picture</span>
-        <input type="file" id="editPfp" accept="image/*">
+        <textarea id="editBio" rows="3" maxlength="200"></textarea>
       </label>
 
       <div class="modal-actions">
@@ -133,6 +160,65 @@
       </div>
 
       <p class="auth-error" id="profileError"></p>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: CREATE ROOM ============ -->
+  <div class="modal-backdrop hidden" id="createRoomModal">
+    <div class="modal">
+      <h2>Create Room</h2>
+      <p class="modal-sub">Room <b id="createRoomCode">—</b> doesn't exist yet.</p>
+
+      <label class="field">
+        <span>Room name</span>
+        <input type="text" id="createRoomName" placeholder="My cool room" maxlength="40">
+      </label>
+
+      <label class="field">
+        <span>Password (optional)</span>
+        <input type="password" id="createRoomPassword" placeholder="Leave empty for no password">
+      </label>
+
+      <div class="modal-actions">
+        <button id="createRoomBtn">Create</button>
+        <button class="ghost" id="cancelCreateRoomBtn">Cancel</button>
+      </div>
+
+      <p class="auth-error" id="createRoomError"></p>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: ROOM PASSWORD ============ -->
+  <div class="modal-backdrop hidden" id="passwordModal">
+    <div class="modal">
+      <h2>Password Required</h2>
+      <p class="modal-sub">Room <b id="passwordRoomCode">—</b> is locked.</p>
+
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="joinRoomPassword" placeholder="Enter password">
+      </label>
+
+      <div class="modal-actions">
+        <button id="submitPasswordBtn">Join</button>
+        <button class="ghost" id="cancelPasswordBtn">Cancel</button>
+      </div>
+
+      <p class="auth-error" id="passwordError"></p>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: MANAGE KICKED ============ -->
+  <div class="modal-backdrop hidden" id="kickedModal">
+    <div class="modal">
+      <h2>Kicked Users</h2>
+      <div class="kicked-list" id="kickedList">
+        <p class="modal-sub">Nobody is kicked.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="ghost" id="closeKickedBtn">Close</button>
+      </div>
     </div>
   </div>
 

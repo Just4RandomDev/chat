@@ -24,8 +24,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // ------------------------------------------------------------------
-// FIREBASE INIT
+// FIREBASE
 // ------------------------------------------------------------------
+
 const firebaseConfig = {
   apiKey: "AIzaSyBynvxWhKhFtb9XWLzCJHRpbOY3_D1hs2w",
   authDomain: "chat-789ff.firebaseapp.com",
@@ -42,8 +43,6 @@ const db   = getDatabase(app);
 
 // ------------------------------------------------------------------
 // ENCRYPTION
-// Group messages: key from server code.
-// DMs: key from both UIDs joined (sorted so both sides match).
 // ------------------------------------------------------------------
 
 function shaKey(str) {
@@ -65,6 +64,12 @@ function decryptText(cipher, key) {
   }
 }
 
+// Room password hashing is separate from message encryption.
+// Just enough to stop casual snooping of the room config.
+function hashPassword(pw) {
+  return CryptoJS.SHA256("room::" + pw).toString();
+}
+
 function dmKey(uidA, uidB) {
   const [a, b] = [uidA, uidB].sort();
   return "DM::" + a + "::" + b;
@@ -76,6 +81,99 @@ function dmPath(uidA, uidB) {
 }
 
 // ------------------------------------------------------------------
+// URL EMBEDDING
+// ------------------------------------------------------------------
+
+// Matches http(s) URLs in text
+const URL_REGEX = /\bhttps?:\/\/[^\s<>"']+/gi;
+
+// Extensions we auto-embed as <img> or <video>
+const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i;
+const VID_EXT = /\.(mp4|webm|ogg|mov)(\?.*)?$/i;
+
+// Hosts that serve direct media even without an extension in the path
+const MEDIA_HOSTS = [
+  "media.tenor.com",
+  "c.tenor.com",
+  "media.giphy.com",
+  "i.giphy.com",
+  "i.imgur.com",
+  "cdn.discordapp.com",
+  "media.discordapp.net"
+];
+
+function classifyUrl(url) {
+  let u;
+  try { u = new URL(url); } catch { return "link"; }
+  const host = u.hostname.toLowerCase();
+  const path = u.pathname;
+
+  if (IMG_EXT.test(path)) return "image";
+  if (VID_EXT.test(path)) return "video";
+
+  // Tenor/Giphy page URLs are not direct, but media.* subdomains are
+  if (MEDIA_HOSTS.includes(host)) {
+    if (VID_EXT.test(path)) return "video";
+    return "image";
+  }
+
+  return "link";
+}
+
+// Build the bubble content for a message: text with links, plus embedded media
+function buildBubbleContent(bubble, plainText) {
+  // Split on URLs, keeping the URLs in the result
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  const regex = new RegExp(URL_REGEX.source, "gi");
+
+  while ((match = regex.exec(plainText)) !== null) {
+    if (match.index > lastIndex) parts.push({ type: "text", value: plainText.slice(lastIndex, match.index) });
+    parts.push({ type: "url", value: match[0] });
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < plainText.length) parts.push({ type: "text", value: plainText.slice(lastIndex) });
+
+  const embeds = [];
+
+  for (const p of parts) {
+    if (p.type === "text") {
+      bubble.appendChild(document.createTextNode(p.value));
+    } else {
+      const kind = classifyUrl(p.value);
+      const a = document.createElement("a");
+      a.href = p.value;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = p.value;
+      bubble.appendChild(a);
+
+      if (kind === "image" || kind === "video") {
+        embeds.push({ kind, url: p.value });
+      }
+    }
+  }
+
+  for (const e of embeds) {
+    if (e.kind === "image") {
+      const img = document.createElement("img");
+      img.src = e.url;
+      img.loading = "lazy";
+      img.alt = "";
+      img.onerror = () => img.remove();
+      bubble.appendChild(img);
+    } else {
+      const v = document.createElement("video");
+      v.src = e.url;
+      v.controls = true;
+      v.preload = "metadata";
+      bubble.appendChild(v);
+    }
+  }
+}
+
+// ------------------------------------------------------------------
 // STATE
 // ------------------------------------------------------------------
 
@@ -83,11 +181,12 @@ let me = null;
 let currentServerCode = null;
 let currentRoomRef    = null;
 let currentQueryRef   = null;
+let currentRoomMeta   = null;      // { name, hasPassword, passwordHash, adminUid }
 let currentPresenceRef = null;
 let currentPresenceListener = null;
 let blockedSet        = new Set();
 let userCache         = new Map();
-let pendingFile       = null;
+let pendingFile       = null;      // { type, dataUrl, objectUrl, name }
 let activeDmUid       = null;
 let dmQueryRef        = null;
 let groupOnChildOff   = null;
@@ -119,14 +218,19 @@ const myUsernameLabel = $("myUsernameLabel");
 const serverCodeInput = $("serverCodeInput");
 const joinBtn      = $("joinBtn");
 const profileBtn   = $("profileBtn");
+const myPfpBtn     = $("myPfpBtn");
 const logoutBtn    = $("logoutBtn");
 const statusDot    = $("statusDot");
 const statusText   = $("statusText");
 
 const onlineCount  = $("onlineCount");
 const userList     = $("userList");
+const adminPanel   = $("adminPanel");
+const adminPanelTitle = $("adminPanelTitle");
+const kickPanelBtn = $("kickPanelBtn");
 
 const chatHeadTitle = $("chatHeadTitle");
+const adminBadge    = $("adminBadge");
 const closeDmBtn    = $("closeDmBtn");
 const chatContainer = $("chatContainer");
 const emptyState    = $("emptyState");
@@ -137,21 +241,50 @@ const fileLabel    = $("fileLabel");
 const sendBtn      = $("sendBtn");
 const toastEl      = $("toast");
 
+const filePreview      = $("filePreview");
+const filePreviewImg   = $("filePreviewImg");
+const filePreviewVideo = $("filePreviewVideo");
+const filePreviewName  = $("filePreviewName");
+const filePreviewRemove= $("filePreviewRemove");
+
 const userModal    = $("userModal");
 const modalPfp     = $("modalPfp");
 const modalName    = $("modalName");
 const modalBio     = $("modalBio");
 const modalDmBtn   = $("modalDmBtn");
 const modalBlockBtn= $("modalBlockBtn");
+const modalKickBtn = $("modalKickBtn");
 const modalCloseBtn= $("modalCloseBtn");
 
 const profileModal = $("profileModal");
+const myProfileAvatar = $("myProfileAvatar");
+const profileHeroName = $("profileHeroName");
+const profileHeroEmail = $("profileHeroEmail");
 const editUsername = $("editUsername");
 const editBio      = $("editBio");
 const editPfp      = $("editPfp");
 const saveProfileBtn = $("saveProfileBtn");
 const cancelProfileBtn = $("cancelProfileBtn");
 const profileError = $("profileError");
+
+const createRoomModal = $("createRoomModal");
+const createRoomCode  = $("createRoomCode");
+const createRoomName  = $("createRoomName");
+const createRoomPassword = $("createRoomPassword");
+const createRoomBtn   = $("createRoomBtn");
+const cancelCreateRoomBtn = $("cancelCreateRoomBtn");
+const createRoomError = $("createRoomError");
+
+const passwordModal = $("passwordModal");
+const passwordRoomCode = $("passwordRoomCode");
+const joinRoomPassword = $("joinRoomPassword");
+const submitPasswordBtn = $("submitPasswordBtn");
+const cancelPasswordBtn = $("cancelPasswordBtn");
+const passwordError = $("passwordError");
+
+const kickedModal = $("kickedModal");
+const kickedList  = $("kickedList");
+const closeKickedBtn = $("closeKickedBtn");
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -223,8 +356,23 @@ async function fetchUser(uid) {
   }
 }
 
+function isAdmin() {
+  return me && currentRoomMeta && currentRoomMeta.adminUid === me.uid;
+}
+
+function updateAdminUI() {
+  const admin = isAdmin();
+  adminBadge.classList.toggle("hidden", !admin);
+  adminPanel.style.display = admin ? "block" : "none";
+  adminPanelTitle.style.display = admin ? "block" : "none";
+}
+
+function updateMyPfpButton() {
+  myPfpBtn.src = me.pfp || defaultPfp(me.username);
+}
+
 // ------------------------------------------------------------------
-// AUTH FLOW
+// AUTH
 // ------------------------------------------------------------------
 
 tabLogin.addEventListener("click", () => {
@@ -267,16 +415,13 @@ signupBtn.addEventListener("click", async () => {
 
   try {
     window.__signupInProgress = true;
-
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
-
     await set(ref(db, `users/${cred.user.uid}`), {
       username,
       bio: "",
       pfp: "",
       createdAt: serverTimestamp()
     });
-
     userCache.delete(cred.user.uid);
   } catch (e) {
     window.__signupInProgress = false;
@@ -298,7 +443,6 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Wait for the profile write if signup is in flight
   if (window.__signupInProgress) {
     let tries = 0;
     while (tries < 30) {
@@ -312,7 +456,6 @@ onAuthStateChanged(auth, async (user) => {
 
   const snap = await get(ref(db, `users/${user.uid}`));
   let data = snap.val();
-
   if (!data) {
     const fallbackName = (user.email || "").split("@")[0].slice(0, 16) || "user";
     data = { username: fallbackName, bio: "", pfp: "" };
@@ -328,6 +471,7 @@ onAuthStateChanged(auth, async (user) => {
   };
 
   myUsernameLabel.textContent = me.username;
+  updateMyPfpButton();
 
   blockedSet = new Set();
   const blockSnap = await get(ref(db, `blocks/${me.uid}`));
@@ -340,7 +484,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ------------------------------------------------------------------
-// PROFILE EDIT
+// PROFILE MODAL
 // ------------------------------------------------------------------
 
 profileBtn.addEventListener("click", () => {
@@ -348,7 +492,19 @@ profileBtn.addEventListener("click", () => {
   editBio.value      = me.bio;
   editPfp.value      = "";
   profileError.textContent = "";
+  myProfileAvatar.src  = me.pfp || defaultPfp(me.username);
+  profileHeroName.textContent = me.username;
+  profileHeroEmail.textContent = me.email;
   profileModal.classList.remove("hidden");
+});
+
+// Live preview while picking a new pfp
+editPfp.addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = (ev) => { myProfileAvatar.src = ev.target.result; };
+  r.readAsDataURL(f);
 });
 
 cancelProfileBtn.addEventListener("click", () => {
@@ -357,7 +513,6 @@ cancelProfileBtn.addEventListener("click", () => {
 
 saveProfileBtn.addEventListener("click", async () => {
   profileError.textContent = "";
-
   const newName = editUsername.value.trim();
   if (newName.length < 2 || newName.length > 24) {
     profileError.textContent = "Username must be 2–24 chars";
@@ -392,11 +547,11 @@ saveProfileBtn.addEventListener("click", async () => {
     me.pfp      = newPfp;
 
     myUsernameLabel.textContent = me.username;
+    updateMyPfpButton();
     userCache.set(me.uid, { uid: me.uid, username: me.username, pfp: me.pfp, bio: me.bio });
 
     profileModal.classList.add("hidden");
     showToast("Profile saved");
-
     if (currentServerCode) refreshUserList();
   } catch (e) {
     profileError.textContent = e.message;
@@ -404,64 +559,140 @@ saveProfileBtn.addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------------
-// JOIN / LEAVE ROOM
+// JOIN / CREATE ROOM
 // ------------------------------------------------------------------
 
-joinBtn.addEventListener("click", () => joinRoom(serverCodeInput.value));
+joinBtn.addEventListener("click", () => requestJoin(serverCodeInput.value));
 
 serverCodeInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") joinRoom(serverCodeInput.value);
+  if (e.key === "Enter") requestJoin(serverCodeInput.value);
 });
 
-async function detachFromRoom() {
-  if (groupOnChildOff) { groupOnChildOff(); groupOnChildOff = null; }
-  if (dmOnChildOff)    { dmOnChildOff();    dmOnChildOff    = null; }
-
-  if (currentPresenceListener) {
-    currentPresenceListener();
-    currentPresenceListener = null;
-  }
-
-  if (currentPresenceRef) {
-    try { await remove(currentPresenceRef); } catch {}
-    currentPresenceRef = null;
-  }
-
-  currentRoomRef  = null;
-  currentQueryRef = null;
-  currentServerCode = null;
-  activeDmUid = null;
-  dmQueryRef = null;
+function sanitizeCode(raw) {
+  return (raw || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
 }
 
-async function joinRoom(rawCode) {
-  if (!rawCode || !rawCode.trim()) { showToast("Enter a server code"); return; }
-
-  const code = rawCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+async function requestJoin(rawCode) {
+  const code = sanitizeCode(rawCode);
   if (code.length < 2) { showToast("Server code needs 2+ chars"); return; }
 
+  // Check if the room exists
+  const roomSnap = await get(ref(db, `rooms/${code}`));
+  if (!roomSnap.exists()) {
+    // Offer to create it
+    createRoomCode.textContent = code;
+    createRoomName.value = "";
+    createRoomPassword.value = "";
+    createRoomError.textContent = "";
+    createRoomModal.classList.remove("hidden");
+    return;
+  }
+
+  const room = roomSnap.val();
+
+  // Check if I've been kicked
+  if (room.kicked && room.kicked[me.uid]) {
+    showToast("You've been kicked from this room");
+    return;
+  }
+
+  // Password check
+  if (room.hasPassword) {
+    passwordRoomCode.textContent = code;
+    joinRoomPassword.value = "";
+    passwordError.textContent = "";
+    passwordModal.classList.remove("hidden");
+    return;
+  }
+
+  await enterRoom(code, room);
+}
+
+// Create room flow
+createRoomBtn.addEventListener("click", async () => {
+  const code = createRoomCode.textContent;
+  const name = createRoomName.value.trim() || code;
+  const pw   = createRoomPassword.value;
+
+  createRoomError.textContent = "";
+  if (name.length > 40) { createRoomError.textContent = "Name too long"; return; }
+
+  const meta = {
+    name,
+    adminUid: me.uid,
+    createdAt: serverTimestamp(),
+    hasPassword: !!pw,
+    passwordHash: pw ? hashPassword(pw) : "",
+    kicked: {}
+  };
+
+  try {
+    await set(ref(db, `rooms/${code}`), meta);
+    createRoomModal.classList.add("hidden");
+    showToast("Room created — you're the admin");
+    await enterRoom(code, { ...meta, hasPassword: !!pw });
+  } catch (e) {
+    createRoomError.textContent = e.message;
+  }
+});
+
+cancelCreateRoomBtn.addEventListener("click", () => {
+  createRoomModal.classList.add("hidden");
+});
+
+// Password prompt flow
+submitPasswordBtn.addEventListener("click", async () => {
+  const code = passwordRoomCode.textContent;
+  const pw   = joinRoomPassword.value;
+  passwordError.textContent = "";
+
+  const roomSnap = await get(ref(db, `rooms/${code}`));
+  const room = roomSnap.val();
+  if (!room) { passwordError.textContent = "Room disappeared"; return; }
+  if (room.passwordHash !== hashPassword(pw)) {
+    passwordError.textContent = "Wrong password";
+    return;
+  }
+  if (room.kicked && room.kicked[me.uid]) {
+    passwordError.textContent = "You've been kicked from this room";
+    return;
+  }
+
+  passwordModal.classList.add("hidden");
+  await enterRoom(code, room);
+});
+
+cancelPasswordBtn.addEventListener("click", () => {
+  passwordModal.classList.add("hidden");
+});
+
+// Actually join after all checks pass
+async function enterRoom(code, roomMeta) {
   await detachFromRoom();
 
   currentServerCode = code;
+  currentRoomMeta   = roomMeta;
   currentRoomRef    = ref(db, `chats/${code}/messages`);
   currentQueryRef   = query(currentRoomRef, limitToLast(100));
 
   exitDmView();
-
   resetChatUI();
   setStatus(true);
-  chatHeadTitle.textContent = "# " + code;
+  updateAdminUI();
+
+  chatHeadTitle.textContent = "# " + (roomMeta.name || code);
 
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
     if (!msg) return;
     if (blockedSet.has(msg.uid)) return;
-    renderMessage(msg, msg.uid === me.uid);
+    renderMessage(snapshot.key, msg, msg.uid === me.uid);
     hideEmptyState();
   };
   onChildAdded(currentQueryRef, handleChild);
   groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
 
+  // Presence
   currentPresenceRef = ref(db, `chats/${code}/presence/${me.uid}`);
   await set(currentPresenceRef, {
     username: me.username,
@@ -472,20 +703,37 @@ async function joinRoom(rawCode) {
 
   const presQuery = ref(db, `chats/${code}/presence`);
   currentPresenceListener = onValue(presQuery, (snap) => {
-    const data = snap.val() || {};
-    renderUserList(data);
+    renderUserList(snap.val() || {});
   });
 
   showToast("Joined #" + code);
+}
+
+async function detachFromRoom() {
+  if (groupOnChildOff) { groupOnChildOff(); groupOnChildOff = null; }
+  if (dmOnChildOff)    { dmOnChildOff();    dmOnChildOff    = null; }
+  if (currentPresenceListener) { currentPresenceListener(); currentPresenceListener = null; }
+  if (currentPresenceRef) {
+    try { await remove(currentPresenceRef); } catch {}
+    currentPresenceRef = null;
+  }
+  currentRoomRef = null;
+  currentQueryRef = null;
+  currentServerCode = null;
+  currentRoomMeta = null;
+  activeDmUid = null;
+  dmQueryRef = null;
+  updateAdminUI();
 }
 
 // ------------------------------------------------------------------
 // RENDER MESSAGES
 // ------------------------------------------------------------------
 
-async function renderMessage(msg, isOwn) {
+async function renderMessage(msgId, msg, isOwn) {
   const wrapper = document.createElement("div");
   wrapper.className = "message" + (isOwn ? " own" : "");
+  wrapper.dataset.msgId = msgId;
 
   const sender = await fetchUser(msg.uid);
 
@@ -499,7 +747,12 @@ async function renderMessage(msg, isOwn) {
 
   if (msg.text) {
     const key = msg.dmKey ? msg.dmKey : currentServerCode;
-    bubble.appendChild(document.createTextNode(decryptText(msg.text, key)));
+    const plain = decryptText(msg.text, key);
+    if (plain && plain !== "[could not decrypt]") {
+      buildBubbleContent(bubble, plain);
+    } else {
+      bubble.appendChild(document.createTextNode(plain));
+    }
   }
 
   if (msg.mediaType && msg.mediaData) {
@@ -525,6 +778,21 @@ async function renderMessage(msg, isOwn) {
         bubble.appendChild(v);
       }
     }
+  }
+
+  // Admin delete button (only in group chat, not DMs)
+  if (isAdmin() && !activeDmUid && currentServerCode) {
+    const del = document.createElement("button");
+    del.className = "delete-msg";
+    del.textContent = "Delete";
+    del.addEventListener("click", async () => {
+      if (!confirm("Delete this message?")) return;
+      try {
+        await remove(ref(db, `chats/${currentServerCode}/messages/${msgId}`));
+        wrapper.remove();
+      } catch (e) { showToast("Could not delete: " + e.message); }
+    });
+    wrapper.appendChild(del);
   }
 
   wrapper.appendChild(meta);
@@ -592,6 +860,9 @@ async function openUserModal(uid) {
 
   modalBlockBtn.textContent = blockedSet.has(uid) ? "Unblock" : "Block";
 
+  // Kick button only for admins
+  modalKickBtn.classList.toggle("hidden", !isAdmin());
+
   userModal.classList.remove("hidden");
 }
 
@@ -623,38 +894,67 @@ modalBlockBtn.addEventListener("click", async () => {
 
   userModal.classList.add("hidden");
   modalUid = null;
-
   refreshUserList();
-
-  if (!activeDmUid && currentServerCode) {
-    await reattachGroupListener();
-  }
+  if (!activeDmUid && currentServerCode) await reattachGroupListener();
 });
 
-async function reattachGroupListener() {
-  if (groupOnChildOff) { groupOnChildOff(); groupOnChildOff = null; }
-  resetChatUI();
+modalKickBtn.addEventListener("click", async () => {
+  if (!modalUid || !isAdmin()) return;
+  const uid = modalUid;
 
-  const handleChild = (snapshot) => {
-    const msg = snapshot.val();
-    if (!msg) return;
-    if (blockedSet.has(msg.uid)) return;
-    renderMessage(msg, msg.uid === me.uid);
-    hideEmptyState();
-  };
-  onChildAdded(currentQueryRef, handleChild);
-  groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
-}
+  try {
+    await set(ref(db, `rooms/${currentServerCode}/kicked/${uid}`), true);
+    await remove(ref(db, `chats/${currentServerCode}/presence/${uid}`));
+    showToast("Kicked");
+  } catch (e) {
+    showToast("Could not kick: " + e.message);
+  }
+
+  userModal.classList.add("hidden");
+  modalUid = null;
+});
+
+// Kicked manager modal
+kickPanelBtn.addEventListener("click", async () => {
+  kickedList.innerHTML = "";
+  const snap = await get(ref(db, `rooms/${currentServerCode}/kicked`));
+  const data = snap.val() || {};
+  const uids = Object.keys(data);
+
+  if (!uids.length) {
+    kickedList.innerHTML = '<p class="modal-sub">Nobody is kicked.</p>';
+  } else {
+    for (const uid of uids) {
+      const p = await fetchUser(uid);
+      const row = document.createElement("div");
+      row.className = "kicked-row";
+      row.innerHTML = `<img src="${p.pfp || defaultPfp(p.username)}" alt="">
+        <span>${escapeHtml(p.username)}</span>
+        <button data-uid="${uid}">Un-kick</button>`;
+      row.querySelector("button").addEventListener("click", async () => {
+        try {
+          await remove(ref(db, `rooms/${currentServerCode}/kicked/${uid}`));
+          row.remove();
+          showToast("Un-kicked");
+        } catch (e) { showToast(e.message); }
+      });
+      kickedList.appendChild(row);
+    }
+  }
+
+  kickedModal.classList.remove("hidden");
+});
+
+closeKickedBtn.addEventListener("click", () => {
+  kickedModal.classList.add("hidden");
+});
 
 // ------------------------------------------------------------------
 // DMs
 // ------------------------------------------------------------------
 
 async function openDm(otherUid) {
-  if (!currentServerCode) {
-    showToast("Join a server code first");
-    return;
-  }
+  if (!currentServerCode) { showToast("Join a server code first"); return; }
   if (dmOnChildOff) { dmOnChildOff(); dmOnChildOff = null; }
 
   activeDmUid = otherUid;
@@ -665,11 +965,12 @@ async function openDm(otherUid) {
   const other = await fetchUser(otherUid);
   chatHeadTitle.textContent = "DM with " + other.username;
   closeDmBtn.classList.remove("hidden");
+  adminBadge.classList.add("hidden");
 
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
     if (!msg) return;
-    renderMessage(msg, msg.uid === me.uid);
+    renderMessage(snapshot.key, msg, msg.uid === me.uid);
     hideEmptyState();
   };
   onChildAdded(dmQueryRef, handleChild);
@@ -681,7 +982,10 @@ function exitDmView() {
   dmQueryRef  = null;
   if (dmOnChildOff) { dmOnChildOff(); dmOnChildOff = null; }
   closeDmBtn.classList.add("hidden");
-  if (currentServerCode) chatHeadTitle.textContent = "# " + currentServerCode;
+  if (currentServerCode) {
+    chatHeadTitle.textContent = "# " + (currentRoomMeta?.name || currentServerCode);
+    updateAdminUI();
+  }
 }
 
 closeDmBtn.addEventListener("click", async () => {
@@ -689,6 +993,21 @@ closeDmBtn.addEventListener("click", async () => {
   resetChatUI();
   await reattachGroupListener();
 });
+
+async function reattachGroupListener() {
+  if (groupOnChildOff) { groupOnChildOff(); groupOnChildOff = null; }
+  resetChatUI();
+
+  const handleChild = (snapshot) => {
+    const msg = snapshot.val();
+    if (!msg) return;
+    if (blockedSet.has(msg.uid)) return;
+    renderMessage(snapshot.key, msg, msg.uid === me.uid);
+    hideEmptyState();
+  };
+  onChildAdded(currentQueryRef, handleChild);
+  groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
+}
 
 // ------------------------------------------------------------------
 // SEND
@@ -734,12 +1053,11 @@ async function sendMessage() {
   }
 
   messageInput.value = "";
-  pendingFile = null;
-  fileInput.value = "";
+  clearPendingFile();
 }
 
 // ------------------------------------------------------------------
-// FILE PICKER
+// FILE PICKER + PREVIEW
 // ------------------------------------------------------------------
 
 fileInput.addEventListener("change", (e) => {
@@ -749,7 +1067,6 @@ fileInput.addEventListener("change", (e) => {
   if (file.size > 1.5 * 1024 * 1024) {
     showToast("File too big (1.5MB max)");
     fileInput.value = "";
-    pendingFile = null;
     return;
   }
 
@@ -759,13 +1076,48 @@ fileInput.addEventListener("change", (e) => {
   else if (file.type.startsWith("video/")) type = "video";
   else { showToast("Images, GIFs, videos only"); fileInput.value = ""; return; }
 
-  const r = new FileReader();
-  r.onload = (ev) => {
-    pendingFile = { type, dataUrl: ev.target.result };
-    showToast(type + " attached");
+  const objectUrl = URL.createObjectURL(file);
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    // Revoke any previous preview URL
+    if (pendingFile && pendingFile.objectUrl) URL.revokeObjectURL(pendingFile.objectUrl);
+
+    pendingFile = {
+      type,
+      dataUrl: ev.target.result,
+      objectUrl,
+      name: file.name
+    };
+
+    // Show the preview chip
+    filePreviewName.textContent = `${type.toUpperCase()} · ${file.name}`;
+    if (type === "video") {
+      filePreviewImg.classList.add("hidden");
+      filePreviewVideo.classList.remove("hidden");
+      filePreviewVideo.src = objectUrl;
+    } else {
+      filePreviewVideo.classList.add("hidden");
+      filePreviewImg.classList.remove("hidden");
+      filePreviewImg.src = objectUrl;
+    }
+    filePreview.classList.remove("hidden");
   };
-  r.readAsDataURL(file);
+  reader.readAsDataURL(file);
 });
+
+filePreviewRemove.addEventListener("click", () => {
+  clearPendingFile();
+});
+
+function clearPendingFile() {
+  if (pendingFile && pendingFile.objectUrl) URL.revokeObjectURL(pendingFile.objectUrl);
+  pendingFile = null;
+  fileInput.value = "";
+  filePreview.classList.add("hidden");
+  filePreviewImg.src = "";
+  filePreviewVideo.src = "";
+}
 
 // ------------------------------------------------------------------
 // BOOT
