@@ -43,7 +43,7 @@ const db   = getDatabase(app);
 // ------------------------------------------------------------------
 // ENCRYPTION
 // Group messages: key from server code.
-// DMs: key from both UIDs joined + server code (so both sides compute the same key).
+// DMs: key from both UIDs joined (sorted so both sides match).
 // ------------------------------------------------------------------
 
 function shaKey(str) {
@@ -66,7 +66,6 @@ function decryptText(cipher, key) {
 }
 
 function dmKey(uidA, uidB) {
-  // Sort so both sides compute the same value regardless of who opens the DM
   const [a, b] = [uidA, uidB].sort();
   return "DM::" + a + "::" + b;
 }
@@ -80,19 +79,19 @@ function dmPath(uidA, uidB) {
 // STATE
 // ------------------------------------------------------------------
 
-let me = null;                       // { uid, email, username, pfp, bio }
-let currentServerCode = null;        // e.g. "demo-room"
-let currentRoomRef    = null;        // /chats/<code>/messages
-let currentQueryRef   = null;        // limited query on the above
-let currentPresenceRef = null;       // /chats/<code>/presence/<myUid>
-let currentPresenceListener = null;  // onValue unsubscribe
-let blockedSet        = new Set();   // uids I've blocked
-let userCache         = new Map();   // uid -> { username, pfp, bio }
-let pendingFile       = null;        // { type, dataUrl }
-let activeDmUid       = null;        // uid of the DM partner, or null for group
-let dmQueryRef        = null;        // current DM query (for detach)
-let groupOnChildOff   = null;        // detach function for group listener
-let dmOnChildOff      = null;        // detach function for dm listener
+let me = null;
+let currentServerCode = null;
+let currentRoomRef    = null;
+let currentQueryRef   = null;
+let currentPresenceRef = null;
+let currentPresenceListener = null;
+let blockedSet        = new Set();
+let userCache         = new Map();
+let pendingFile       = null;
+let activeDmUid       = null;
+let dmQueryRef        = null;
+let groupOnChildOff   = null;
+let dmOnChildOff      = null;
 
 // ------------------------------------------------------------------
 // DOM
@@ -196,11 +195,10 @@ function escapeHtml(str) {
 }
 
 function defaultPfp(name) {
-  // tiny inline SVG avatar
   const letter = (name || "?").trim().charAt(0).toUpperCase();
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
-    <rect width='32' height='32' fill='#f0e0d6'/>
-    <text x='16' y='22' font-family='Tahoma' font-size='18' text-anchor='middle' fill='#800000'>${letter}</text>
+    <rect width='32' height='32' fill='#241a1a'/>
+    <text x='16' y='22' font-family='Tahoma' font-size='18' text-anchor='middle' fill='#d94a4a'>${letter}</text>
   </svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
@@ -268,20 +266,25 @@ signupBtn.addEventListener("click", async () => {
   if (pass.length < 6) { authError.textContent = "Password must be 6+ chars"; return; }
 
   try {
+    window.__signupInProgress = true;
+
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
     await set(ref(db, `users/${cred.user.uid}`), {
       username,
       bio: "",
       pfp: "",
       createdAt: serverTimestamp()
     });
+
+    userCache.delete(cred.user.uid);
   } catch (e) {
+    window.__signupInProgress = false;
     authError.textContent = e.message.replace("Firebase: ", "");
   }
 });
 
 logoutBtn.addEventListener("click", async () => {
-  // Clean up presence before signing out
   await detachFromRoom();
   await signOut(auth);
 });
@@ -289,17 +292,30 @@ logoutBtn.addEventListener("click", async () => {
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     me = null;
+    window.__signupInProgress = false;
     authScreen.classList.remove("hidden");
     appRoot.classList.add("hidden");
     return;
   }
 
-  // Load profile
+  // Wait for the profile write if signup is in flight
+  if (window.__signupInProgress) {
+    let tries = 0;
+    while (tries < 30) {
+      const snap = await get(ref(db, `users/${user.uid}`));
+      if (snap.exists()) break;
+      await new Promise(r => setTimeout(r, 100));
+      tries++;
+    }
+    window.__signupInProgress = false;
+  }
+
   const snap = await get(ref(db, `users/${user.uid}`));
   let data = snap.val();
+
   if (!data) {
-    // Profile missing (e.g. legacy account). Create a default one.
-    data = { username: "user_" + user.uid.slice(0, 5), bio: "", pfp: "" };
+    const fallbackName = (user.email || "").split("@")[0].slice(0, 16) || "user";
+    data = { username: fallbackName, bio: "", pfp: "" };
     await set(ref(db, `users/${user.uid}`), data);
   }
 
@@ -313,7 +329,6 @@ onAuthStateChanged(auth, async (user) => {
 
   myUsernameLabel.textContent = me.username;
 
-  // Load block list
   blockedSet = new Set();
   const blockSnap = await get(ref(db, `blocks/${me.uid}`));
   const blockData = blockSnap.val() || {};
@@ -351,7 +366,6 @@ saveProfileBtn.addEventListener("click", async () => {
 
   let newPfp = me.pfp;
 
-  // If a file was chosen, convert it and store as data URL
   if (editPfp.files[0]) {
     const file = editPfp.files[0];
     if (file.size > 400 * 1024) {
@@ -378,12 +392,11 @@ saveProfileBtn.addEventListener("click", async () => {
     me.pfp      = newPfp;
 
     myUsernameLabel.textContent = me.username;
-    userCache.delete(me.uid); // so everyone fetches the fresh copy
+    userCache.set(me.uid, { uid: me.uid, username: me.username, pfp: me.pfp, bio: me.bio });
 
     profileModal.classList.add("hidden");
     showToast("Profile saved");
 
-    // Refresh the side panel since our name/pfp changed
     if (currentServerCode) refreshUserList();
   } catch (e) {
     profileError.textContent = e.message;
@@ -433,25 +446,22 @@ async function joinRoom(rawCode) {
   currentRoomRef    = ref(db, `chats/${code}/messages`);
   currentQueryRef   = query(currentRoomRef, limitToLast(100));
 
-  // Back to group view
   exitDmView();
 
   resetChatUI();
   setStatus(true);
   chatHeadTitle.textContent = "# " + code;
 
-  // Attach group listener
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
     if (!msg) return;
-    if (blockedSet.has(msg.uid)) return;   // client-side block
+    if (blockedSet.has(msg.uid)) return;
     renderMessage(msg, msg.uid === me.uid);
     hideEmptyState();
   };
   onChildAdded(currentQueryRef, handleChild);
   groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
 
-  // Presence
   currentPresenceRef = ref(db, `chats/${code}/presence/${me.uid}`);
   await set(currentPresenceRef, {
     username: me.username,
@@ -460,7 +470,6 @@ async function joinRoom(rawCode) {
   });
   onDisconnect(currentPresenceRef).remove();
 
-  // Watch presence list
   const presQuery = ref(db, `chats/${code}/presence`);
   currentPresenceListener = onValue(presQuery, (snap) => {
     const data = snap.val() || {};
@@ -478,7 +487,6 @@ async function renderMessage(msg, isOwn) {
   const wrapper = document.createElement("div");
   wrapper.className = "message" + (isOwn ? " own" : "");
 
-  // Fetch sender profile (cached)
   const sender = await fetchUser(msg.uid);
 
   const meta = document.createElement("div");
@@ -542,7 +550,6 @@ async function refreshUserList() {
 
   userList.innerHTML = "";
 
-  // Sort: me first, then alphabetical
   uids.sort((a, b) => {
     if (a === me.uid) return -1;
     if (b === me.uid) return 1;
@@ -570,7 +577,7 @@ async function refreshUserList() {
 }
 
 // ------------------------------------------------------------------
-// USER MODAL (DM / Profile / Block)
+// USER MODAL
 // ------------------------------------------------------------------
 
 let modalUid = null;
@@ -617,10 +624,8 @@ modalBlockBtn.addEventListener("click", async () => {
   userModal.classList.add("hidden");
   modalUid = null;
 
-  // Re-render side panel highlight
   refreshUserList();
 
-  // Re-render group chat (blocked messages disappear / reappear)
   if (!activeDmUid && currentServerCode) {
     await reattachGroupListener();
   }
@@ -686,7 +691,7 @@ closeDmBtn.addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------------
-// SEND (group OR dm)
+// SEND
 // ------------------------------------------------------------------
 
 sendBtn.addEventListener("click", sendMessage);
@@ -706,27 +711,23 @@ async function sendMessage() {
   const hasMedia = !!pendingFile;
   if (!rawText && !hasMedia) { showToast("Nothing to send"); return; }
 
-  // Pick encryption key + destination
-  let encKey, payload;
-
   if (activeDmUid) {
-    encKey = dmKey(me.uid, activeDmUid);
-    payload = {
+    const encKey = dmKey(me.uid, activeDmUid);
+    const payload = {
       uid: me.uid,
       text: rawText ? encryptText(rawText, encKey) : "",
       mediaType: hasMedia ? pendingFile.type : null,
       mediaData: hasMedia ? encryptText(pendingFile.dataUrl, encKey) : null,
-      dmKey: encKey,  // stored so the reader knows the key derivation
+      dmKey: encKey,
       timestamp: serverTimestamp()
     };
     await push(ref(db, dmPath(me.uid, activeDmUid)), payload);
   } else {
-    encKey = currentServerCode;
-    payload = {
+    const payload = {
       uid: me.uid,
-      text: rawText ? encryptText(rawText, encKey) : "",
+      text: rawText ? encryptText(rawText, currentServerCode) : "",
       mediaType: hasMedia ? pendingFile.type : null,
-      mediaData: hasMedia ? encryptText(pendingFile.dataUrl, encKey) : null,
+      mediaData: hasMedia ? encryptText(pendingFile.dataUrl, currentServerCode) : null,
       timestamp: serverTimestamp()
     };
     await push(currentRoomRef, payload);
