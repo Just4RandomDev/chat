@@ -17,6 +17,7 @@ import {
   query,
   limitToLast,
   onChildAdded,
+  onChildRemoved,
   onValue,
   off,
   serverTimestamp,
@@ -45,9 +46,7 @@ const db   = getDatabase(app);
 // ENCRYPTION
 // ------------------------------------------------------------------
 
-function shaKey(str) {
-  return CryptoJS.SHA256(str + "::salt::v1").toString();
-}
+function shaKey(str) { return CryptoJS.SHA256(str + "::salt::v1").toString(); }
 
 function encryptText(plain, key) {
   if (!plain) return "";
@@ -59,47 +58,25 @@ function decryptText(cipher, key) {
   try {
     const bytes = CryptoJS.AES.decrypt(cipher, shaKey(key));
     return bytes.toString(CryptoJS.enc.Utf8) || "[could not decrypt]";
-  } catch {
-    return "[could not decrypt]";
-  }
+  } catch { return "[could not decrypt]"; }
 }
 
-// Room password hashing is separate from message encryption.
-// Just enough to stop casual snooping of the room config.
-function hashPassword(pw) {
-  return CryptoJS.SHA256("room::" + pw).toString();
-}
+function hashPassword(pw) { return CryptoJS.SHA256("room::" + pw).toString(); }
 
-function dmKey(uidA, uidB) {
-  const [a, b] = [uidA, uidB].sort();
-  return "DM::" + a + "::" + b;
-}
-
-function dmPath(uidA, uidB) {
-  const [a, b] = [uidA, uidB].sort();
-  return `dms/${a}__${b}/messages`;
-}
+function dmKey(a, b) { const [x, y] = [a, b].sort(); return "DM::" + x + "::" + y; }
+function dmPath(a, b) { const [x, y] = [a, b].sort(); return `dms/${x}__${y}/messages`; }
 
 // ------------------------------------------------------------------
 // URL EMBEDDING
 // ------------------------------------------------------------------
 
-// Matches http(s) URLs in text
 const URL_REGEX = /\bhttps?:\/\/[^\s<>"']+/gi;
-
-// Extensions we auto-embed as <img> or <video>
 const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i;
 const VID_EXT = /\.(mp4|webm|ogg|mov)(\?.*)?$/i;
-
-// Hosts that serve direct media even without an extension in the path
 const MEDIA_HOSTS = [
-  "media.tenor.com",
-  "c.tenor.com",
-  "media.giphy.com",
-  "i.giphy.com",
-  "i.imgur.com",
-  "cdn.discordapp.com",
-  "media.discordapp.net"
+  "media.tenor.com", "c.tenor.com",
+  "media.giphy.com", "i.giphy.com",
+  "i.imgur.com", "cdn.discordapp.com", "media.discordapp.net"
 ];
 
 function classifyUrl(url) {
@@ -107,69 +84,88 @@ function classifyUrl(url) {
   try { u = new URL(url); } catch { return "link"; }
   const host = u.hostname.toLowerCase();
   const path = u.pathname;
-
   if (IMG_EXT.test(path)) return "image";
   if (VID_EXT.test(path)) return "video";
-
-  // Tenor/Giphy page URLs are not direct, but media.* subdomains are
   if (MEDIA_HOSTS.includes(host)) {
     if (VID_EXT.test(path)) return "video";
     return "image";
   }
-
   return "link";
 }
 
-// Build the bubble content for a message: text with links, plus embedded media
-function buildBubbleContent(bubble, plainText) {
-  // Split on URLs, keeping the URLs in the result
-  const parts = [];
-  let lastIndex = 0;
-  let match;
+// Build the content of a single message line.
+// If the message is ONLY a media URL, hide the URL and just show the embed.
+// If it's mixed text + URL, keep the text and strip the URL, then show embeds.
+function buildLineContent(lineEl, plainText) {
+  // Collect URLs
+  const urls = [];
   const regex = new RegExp(URL_REGEX.source, "gi");
+  let m;
+  while ((m = regex.exec(plainText)) !== null) urls.push(m[0]);
 
-  while ((match = regex.exec(plainText)) !== null) {
-    if (match.index > lastIndex) parts.push({ type: "text", value: plainText.slice(lastIndex, match.index) });
-    parts.push({ type: "url", value: match[0] });
-    lastIndex = regex.lastIndex;
-  }
-  if (lastIndex < plainText.length) parts.push({ type: "text", value: plainText.slice(lastIndex) });
+  const mediaUrls = urls.filter(u => {
+    const k = classifyUrl(u);
+    return k === "image" || k === "video";
+  });
+  const nonMediaUrls = urls.filter(u => classifyUrl(u) === "link");
 
-  const embeds = [];
+  // Strip all URLs from the text to get the "rest"
+  let rest = plainText.replace(URL_REGEX, "").trim();
 
-  for (const p of parts) {
-    if (p.type === "text") {
-      bubble.appendChild(document.createTextNode(p.value));
-    } else {
-      const kind = classifyUrl(p.value);
+  // If there's nothing left besides media URLs, hide the URL entirely.
+  // Only render the embeds.
+  if (mediaUrls.length > 0) {
+    // Render remaining text (if any) as plain text with link wrapping for non-media urls
+    if (rest) {
+      lineEl.appendChild(document.createTextNode(rest + " "));
+    }
+    for (const u of nonMediaUrls) {
       const a = document.createElement("a");
-      a.href = p.value;
+      a.href = u;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
-      a.textContent = p.value;
-      bubble.appendChild(a);
+      a.textContent = u;
+      lineEl.appendChild(a);
+      lineEl.appendChild(document.createTextNode(" "));
+    }
 
-      if (kind === "image" || kind === "video") {
-        embeds.push({ kind, url: p.value });
+    for (const u of mediaUrls) {
+      const kind = classifyUrl(u);
+      if (kind === "image") {
+        const img = document.createElement("img");
+        img.src = u;
+        img.loading = "lazy";
+        img.alt = "";
+        img.onerror = () => img.remove();
+        lineEl.appendChild(img);
+      } else {
+        const v = document.createElement("video");
+        v.src = u;
+        v.controls = true;
+        v.preload = "metadata";
+        lineEl.appendChild(v);
       }
     }
+    return;
   }
 
-  for (const e of embeds) {
-    if (e.kind === "image") {
-      const img = document.createElement("img");
-      img.src = e.url;
-      img.loading = "lazy";
-      img.alt = "";
-      img.onerror = () => img.remove();
-      bubble.appendChild(img);
-    } else {
-      const v = document.createElement("video");
-      v.src = e.url;
-      v.controls = true;
-      v.preload = "metadata";
-      bubble.appendChild(v);
+  // No media at all — just render text with clickable links
+  let lastIndex = 0;
+  const re2 = new RegExp(URL_REGEX.source, "gi");
+  while ((m = re2.exec(plainText)) !== null) {
+    if (m.index > lastIndex) {
+      lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex, m.index)));
     }
+    const a = document.createElement("a");
+    a.href = m[0];
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = m[0];
+    lineEl.appendChild(a);
+    lastIndex = re2.lastIndex;
+  }
+  if (lastIndex < plainText.length) {
+    lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex)));
   }
 }
 
@@ -181,16 +177,23 @@ let me = null;
 let currentServerCode = null;
 let currentRoomRef    = null;
 let currentQueryRef   = null;
-let currentRoomMeta   = null;      // { name, hasPassword, passwordHash, adminUid }
+let currentRoomMeta   = null;
 let currentPresenceRef = null;
 let currentPresenceListener = null;
 let blockedSet        = new Set();
 let userCache         = new Map();
-let pendingFile       = null;      // { type, dataUrl, objectUrl, name }
+let pendingFile       = null;
 let activeDmUid       = null;
 let dmQueryRef        = null;
 let groupOnChildOff   = null;
 let dmOnChildOff      = null;
+let lobbyRoomsListener = null;
+
+// Grouping state — track the last group we rendered
+const GROUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+let lastGroupEl = null;     // the .msg-group element
+let lastGroupUid = null;    // uid of the last group
+let lastGroupTime = 0;      // last message timestamp
 
 // ------------------------------------------------------------------
 // DOM
@@ -215,21 +218,27 @@ const signupBtn    = $("signupBtn");
 const authError    = $("authError");
 
 const myUsernameLabel = $("myUsernameLabel");
-const serverCodeInput = $("serverCodeInput");
-const joinBtn      = $("joinBtn");
+const backToLobbyBtn  = $("backToLobbyBtn");
 const profileBtn   = $("profileBtn");
 const myPfpBtn     = $("myPfpBtn");
 const logoutBtn    = $("logoutBtn");
 const statusDot    = $("statusDot");
 const statusText   = $("statusText");
 
+const lobbyView    = $("lobbyView");
+const roomView     = $("roomView");
+const roomGrid     = $("roomGrid");
+const openCreateRoomBtn = $("openCreateRoomBtn");
+
 const onlineCount  = $("onlineCount");
 const userList     = $("userList");
 const adminPanel   = $("adminPanel");
 const adminPanelTitle = $("adminPanelTitle");
 const kickPanelBtn = $("kickPanelBtn");
+const roomSettingsBtn = $("roomSettingsBtn");
 
 const chatHeadTitle = $("chatHeadTitle");
+const chatHeadLock  = $("chatHeadLock");
 const adminBadge    = $("adminBadge");
 const closeDmBtn    = $("closeDmBtn");
 const chatContainer = $("chatContainer");
@@ -268,7 +277,7 @@ const cancelProfileBtn = $("cancelProfileBtn");
 const profileError = $("profileError");
 
 const createRoomModal = $("createRoomModal");
-const createRoomCode  = $("createRoomCode");
+const createRoomCodeInput = $("createRoomCodeInput");
 const createRoomName  = $("createRoomName");
 const createRoomPassword = $("createRoomPassword");
 const createRoomBtn   = $("createRoomBtn");
@@ -285,6 +294,13 @@ const passwordError = $("passwordError");
 const kickedModal = $("kickedModal");
 const kickedList  = $("kickedList");
 const closeKickedBtn = $("closeKickedBtn");
+
+const roomSettingsModal = $("roomSettingsModal");
+const settingsRoomName = $("settingsRoomName");
+const settingsRoomPassword = $("settingsRoomPassword");
+const saveRoomSettingsBtn = $("saveRoomSettingsBtn");
+const cancelRoomSettingsBtn = $("cancelRoomSettingsBtn");
+const roomSettingsError = $("roomSettingsError");
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -310,6 +326,9 @@ function resetChatUI() {
   chatContainer.innerHTML = "";
   chatContainer.appendChild(emptyState);
   emptyState.style.display = "flex";
+  lastGroupEl = null;
+  lastGroupUid = null;
+  lastGroupTime = 0;
 }
 
 function hideEmptyState() {
@@ -356,19 +375,29 @@ async function fetchUser(uid) {
   }
 }
 
-function isAdmin() {
-  return me && currentRoomMeta && currentRoomMeta.adminUid === me.uid;
-}
+function isAdmin() { return me && currentRoomMeta && currentRoomMeta.adminUid === me.uid; }
 
 function updateAdminUI() {
   const admin = isAdmin();
   adminBadge.classList.toggle("hidden", !admin);
-  adminPanel.style.display = admin ? "block" : "none";
-  adminPanelTitle.style.display = admin ? "block" : "none";
+  adminPanel.classList.toggle("hidden", !admin);
+  adminPanelTitle.classList.toggle("hidden", !admin);
 }
 
-function updateMyPfpButton() {
-  myPfpBtn.src = me.pfp || defaultPfp(me.username);
+function updateMyPfpButton() { myPfpBtn.src = me.pfp || defaultPfp(me.username); }
+
+function showLobby() {
+  lobbyView.classList.remove("hidden");
+  roomView.classList.add("hidden");
+  backToLobbyBtn.classList.add("hidden");
+  setStatus(false);
+}
+
+function showRoom() {
+  lobbyView.classList.add("hidden");
+  roomView.classList.remove("hidden");
+  backToLobbyBtn.classList.remove("hidden");
+  setStatus(true);
 }
 
 // ------------------------------------------------------------------
@@ -376,18 +405,14 @@ function updateMyPfpButton() {
 // ------------------------------------------------------------------
 
 tabLogin.addEventListener("click", () => {
-  tabLogin.classList.add("active");
-  tabSignup.classList.remove("active");
-  loginForm.classList.remove("hidden");
-  signupForm.classList.add("hidden");
+  tabLogin.classList.add("active"); tabSignup.classList.remove("active");
+  loginForm.classList.remove("hidden"); signupForm.classList.add("hidden");
   authError.textContent = "";
 });
 
 tabSignup.addEventListener("click", () => {
-  tabSignup.classList.add("active");
-  tabLogin.classList.remove("active");
-  signupForm.classList.remove("hidden");
-  loginForm.classList.add("hidden");
+  tabSignup.classList.add("active"); tabLogin.classList.remove("active");
+  signupForm.classList.remove("hidden"); loginForm.classList.add("hidden");
   authError.textContent = "";
 });
 
@@ -396,11 +421,8 @@ loginBtn.addEventListener("click", async () => {
   const email = loginEmail.value.trim();
   const pass  = loginPassword.value;
   if (!email || !pass) { authError.textContent = "Fill in all fields"; return; }
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-  } catch (e) {
-    authError.textContent = e.message.replace("Firebase: ", "");
-  }
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch (e) { authError.textContent = e.message.replace("Firebase: ", ""); }
 });
 
 signupBtn.addEventListener("click", async () => {
@@ -417,10 +439,7 @@ signupBtn.addEventListener("click", async () => {
     window.__signupInProgress = true;
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await set(ref(db, `users/${cred.user.uid}`), {
-      username,
-      bio: "",
-      pfp: "",
-      createdAt: serverTimestamp()
+      username, bio: "", pfp: "", createdAt: serverTimestamp()
     });
     userCache.delete(cred.user.uid);
   } catch (e) {
@@ -480,107 +499,84 @@ onAuthStateChanged(auth, async (user) => {
 
   authScreen.classList.add("hidden");
   appRoot.classList.remove("hidden");
-  setStatus(false);
+  showLobby();
+  startLobbyListener();
 });
 
 // ------------------------------------------------------------------
-// PROFILE MODAL
+// LOBBY
 // ------------------------------------------------------------------
 
-profileBtn.addEventListener("click", () => {
-  editUsername.value = me.username;
-  editBio.value      = me.bio;
-  editPfp.value      = "";
-  profileError.textContent = "";
-  myProfileAvatar.src  = me.pfp || defaultPfp(me.username);
-  profileHeroName.textContent = me.username;
-  profileHeroEmail.textContent = me.email;
-  profileModal.classList.remove("hidden");
-});
+function startLobbyListener() {
+  if (lobbyRoomsListener) lobbyRoomsListener();
+  const roomsRef = ref(db, "rooms");
+  lobbyRoomsListener = onValue(roomsRef, (snap) => {
+    renderRoomGrid(snap.val() || {});
+  });
+}
 
-// Live preview while picking a new pfp
-editPfp.addEventListener("change", (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = (ev) => { myProfileAvatar.src = ev.target.result; };
-  r.readAsDataURL(f);
-});
+async function renderRoomGrid(rooms) {
+  roomGrid.innerHTML = "";
 
-cancelProfileBtn.addEventListener("click", () => {
-  profileModal.classList.add("hidden");
-});
-
-saveProfileBtn.addEventListener("click", async () => {
-  profileError.textContent = "";
-  const newName = editUsername.value.trim();
-  if (newName.length < 2 || newName.length > 24) {
-    profileError.textContent = "Username must be 2–24 chars";
+  const codes = Object.keys(rooms);
+  if (!codes.length) {
+    roomGrid.innerHTML = '<p class="lobby-empty">No rooms yet. Create one.</p>';
     return;
   }
 
-  let newPfp = me.pfp;
+  // Sort rooms alphabetically by name
+  codes.sort((a, b) => {
+    const na = (rooms[a].name || a).toLowerCase();
+    const nb = (rooms[b].name || b).toLowerCase();
+    return na.localeCompare(nb);
+  });
 
-  if (editPfp.files[0]) {
-    const file = editPfp.files[0];
-    if (file.size > 400 * 1024) {
-      profileError.textContent = "PFP too big (400KB max)";
-      return;
-    }
-    newPfp = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
+  for (const code of codes) {
+    const r = rooms[code] || {};
+    const card = document.createElement("div");
+    card.className = "room-card";
+
+    // Count members from presence
+    let memberCount = 0;
+    try {
+      const presSnap = await get(ref(db, `chats/${code}/presence`));
+      memberCount = Object.keys(presSnap.val() || {}).length;
+    } catch {}
+
+    const icons = [];
+    if (r.hasPassword) icons.push('<span title="Password protected">🔒</span>');
+    if (r.adminUid === me?.uid) icons.push('<span title="You are admin">👑</span>');
+
+    card.innerHTML = `
+      <div class="rc-name">${escapeHtml(r.name || code)}</div>
+      <div class="rc-code">${escapeHtml(code)}</div>
+      <div class="rc-meta">
+        <span>${memberCount} online</span>
+        <div class="rc-icons">${icons.join("")}</div>
+      </div>
+    `;
+
+    card.addEventListener("click", () => requestJoinRoom(code));
+    roomGrid.appendChild(card);
   }
+}
 
-  try {
-    await update(ref(db, `users/${me.uid}`), {
-      username: newName,
-      bio: editBio.value.trim(),
-      pfp: newPfp
-    });
-
-    me.username = newName;
-    me.bio      = editBio.value.trim();
-    me.pfp      = newPfp;
-
-    myUsernameLabel.textContent = me.username;
-    updateMyPfpButton();
-    userCache.set(me.uid, { uid: me.uid, username: me.username, pfp: me.pfp, bio: me.bio });
-
-    profileModal.classList.add("hidden");
-    showToast("Profile saved");
-    if (currentServerCode) refreshUserList();
-  } catch (e) {
-    profileError.textContent = e.message;
-  }
+openCreateRoomBtn.addEventListener("click", () => {
+  createRoomCodeInput.value = "";
+  createRoomName.value = "";
+  createRoomPassword.value = "";
+  createRoomError.textContent = "";
+  createRoomModal.classList.remove("hidden");
 });
 
 // ------------------------------------------------------------------
 // JOIN / CREATE ROOM
 // ------------------------------------------------------------------
 
-joinBtn.addEventListener("click", () => requestJoin(serverCodeInput.value));
-
-serverCodeInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") requestJoin(serverCodeInput.value);
-});
-
-function sanitizeCode(raw) {
-  return (raw || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
-}
-
-async function requestJoin(rawCode) {
-  const code = sanitizeCode(rawCode);
-  if (code.length < 2) { showToast("Server code needs 2+ chars"); return; }
-
-  // Check if the room exists
+async function requestJoinRoom(code) {
   const roomSnap = await get(ref(db, `rooms/${code}`));
   if (!roomSnap.exists()) {
-    // Offer to create it
-    createRoomCode.textContent = code;
+    createRoomCodeInput.value = code;
     createRoomName.value = "";
     createRoomPassword.value = "";
     createRoomError.textContent = "";
@@ -590,13 +586,11 @@ async function requestJoin(rawCode) {
 
   const room = roomSnap.val();
 
-  // Check if I've been kicked
   if (room.kicked && room.kicked[me.uid]) {
     showToast("You've been kicked from this room");
     return;
   }
 
-  // Password check
   if (room.hasPassword) {
     passwordRoomCode.textContent = code;
     joinRoomPassword.value = "";
@@ -608,14 +602,18 @@ async function requestJoin(rawCode) {
   await enterRoom(code, room);
 }
 
-// Create room flow
 createRoomBtn.addEventListener("click", async () => {
-  const code = createRoomCode.textContent;
+  const code = createRoomCodeInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
   const name = createRoomName.value.trim() || code;
   const pw   = createRoomPassword.value;
 
   createRoomError.textContent = "";
+  if (code.length < 2) { createRoomError.textContent = "Code must be 2+ chars (a-z, 0-9, -, _)"; return; }
   if (name.length > 40) { createRoomError.textContent = "Name too long"; return; }
+
+  // Check if it already exists
+  const exists = await get(ref(db, `rooms/${code}`));
+  if (exists.exists()) { createRoomError.textContent = "That code is taken"; return; }
 
   const meta = {
     name,
@@ -636,11 +634,8 @@ createRoomBtn.addEventListener("click", async () => {
   }
 });
 
-cancelCreateRoomBtn.addEventListener("click", () => {
-  createRoomModal.classList.add("hidden");
-});
+cancelCreateRoomBtn.addEventListener("click", () => createRoomModal.classList.add("hidden"));
 
-// Password prompt flow
 submitPasswordBtn.addEventListener("click", async () => {
   const code = passwordRoomCode.textContent;
   const pw   = joinRoomPassword.value;
@@ -649,24 +644,15 @@ submitPasswordBtn.addEventListener("click", async () => {
   const roomSnap = await get(ref(db, `rooms/${code}`));
   const room = roomSnap.val();
   if (!room) { passwordError.textContent = "Room disappeared"; return; }
-  if (room.passwordHash !== hashPassword(pw)) {
-    passwordError.textContent = "Wrong password";
-    return;
-  }
-  if (room.kicked && room.kicked[me.uid]) {
-    passwordError.textContent = "You've been kicked from this room";
-    return;
-  }
+  if (room.passwordHash !== hashPassword(pw)) { passwordError.textContent = "Wrong password"; return; }
+  if (room.kicked && room.kicked[me.uid]) { passwordError.textContent = "You've been kicked"; return; }
 
   passwordModal.classList.add("hidden");
   await enterRoom(code, room);
 });
 
-cancelPasswordBtn.addEventListener("click", () => {
-  passwordModal.classList.add("hidden");
-});
+cancelPasswordBtn.addEventListener("click", () => passwordModal.classList.add("hidden"));
 
-// Actually join after all checks pass
 async function enterRoom(code, roomMeta) {
   await detachFromRoom();
 
@@ -677,10 +663,11 @@ async function enterRoom(code, roomMeta) {
 
   exitDmView();
   resetChatUI();
-  setStatus(true);
+  showRoom();
   updateAdminUI();
 
   chatHeadTitle.textContent = "# " + (roomMeta.name || code);
+  chatHeadLock.classList.toggle("hidden", !roomMeta.hasPassword);
 
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
@@ -692,7 +679,6 @@ async function enterRoom(code, roomMeta) {
   onChildAdded(currentQueryRef, handleChild);
   groupOnChildOff = () => off(currentQueryRef, "child_added", handleChild);
 
-  // Presence
   currentPresenceRef = ref(db, `chats/${code}/presence/${me.uid}`);
   await set(currentPresenceRef, {
     username: me.username,
@@ -726,32 +712,64 @@ async function detachFromRoom() {
   updateAdminUI();
 }
 
+backToLobbyBtn.addEventListener("click", async () => {
+  await detachFromRoom();
+  resetChatUI();
+  showLobby();
+});
+
 // ------------------------------------------------------------------
-// RENDER MESSAGES
+// RENDER MESSAGE (grouped)
 // ------------------------------------------------------------------
 
 async function renderMessage(msgId, msg, isOwn) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "message" + (isOwn ? " own" : "");
-  wrapper.dataset.msgId = msgId;
-
   const sender = await fetchUser(msg.uid);
 
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  const pfpUrl = sender.pfp || defaultPfp(sender.username);
-  meta.innerHTML = `<img class="mini-pfp" src="${pfpUrl}" alt="">${escapeHtml(sender.username)} · ${formatTime(msg.timestamp)}`;
+  // Decide whether to start a new group
+  const now = msg.timestamp || Date.now();
+  const sameUser = lastGroupUid === msg.uid;
+  const withinWindow = (now - lastGroupTime) < GROUP_WINDOW_MS;
+  const inDmView = !!activeDmUid;
 
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
+  // If the group is for a different context (switched DM / room), start fresh
+  if (!lastGroupEl || !sameUser || !withinWindow) {
+    const group = document.createElement("div");
+    group.className = "msg-group" + (isOwn ? " own" : "");
+
+    const head = document.createElement("div");
+    head.className = "group-head";
+    const pfpUrl = sender.pfp || defaultPfp(sender.username);
+    head.innerHTML = `<img class="mini-pfp" src="${pfpUrl}" alt="">
+      ${escapeHtml(sender.username)}
+      <span class="group-time">${formatTime(msg.timestamp)}</span>`;
+
+    const body = document.createElement("div");
+    body.className = "group-body";
+
+    group.appendChild(head);
+    group.appendChild(body);
+    chatContainer.appendChild(group);
+
+    lastGroupEl = group;
+    lastGroupUid = msg.uid;
+  }
+
+  lastGroupTime = now;
+
+  const body = lastGroupEl.querySelector(".group-body");
+
+  // Build the message line
+  const line = document.createElement("div");
+  line.className = "msg-line";
+  line.dataset.msgId = msgId;
 
   if (msg.text) {
     const key = msg.dmKey ? msg.dmKey : currentServerCode;
     const plain = decryptText(msg.text, key);
     if (plain && plain !== "[could not decrypt]") {
-      buildBubbleContent(bubble, plain);
+      buildLineContent(line, plain);
     } else {
-      bubble.appendChild(document.createTextNode(plain));
+      line.appendChild(document.createTextNode(plain));
     }
   }
 
@@ -763,25 +781,24 @@ async function renderMessage(msgId, msg, isOwn) {
         const img = document.createElement("img");
         img.src = src;
         img.loading = "lazy";
-        bubble.appendChild(img);
+        line.appendChild(img);
         if (msg.mediaType === "gif") {
           const t = document.createElement("span");
           t.className = "gif-tag";
           t.textContent = "GIF";
-          bubble.appendChild(t);
+          line.appendChild(t);
         }
       } else if (msg.mediaType === "video") {
         const v = document.createElement("video");
         v.src = src;
         v.controls = true;
         v.preload = "metadata";
-        bubble.appendChild(v);
+        line.appendChild(v);
       }
     }
   }
 
-  // Admin delete button (only in group chat, not DMs)
-  if (isAdmin() && !activeDmUid && currentServerCode) {
+  if (isAdmin() && !inDmView && currentServerCode) {
     const del = document.createElement("button");
     del.className = "delete-msg";
     del.textContent = "Delete";
@@ -789,15 +806,15 @@ async function renderMessage(msgId, msg, isOwn) {
       if (!confirm("Delete this message?")) return;
       try {
         await remove(ref(db, `chats/${currentServerCode}/messages/${msgId}`));
-        wrapper.remove();
+        line.remove();
+        // If group body is empty, remove the whole group
+        if (!body.children.length) lastGroupEl.remove();
       } catch (e) { showToast("Could not delete: " + e.message); }
     });
-    wrapper.appendChild(del);
+    line.appendChild(del);
   }
 
-  wrapper.appendChild(meta);
-  wrapper.appendChild(bubble);
-  chatContainer.appendChild(wrapper);
+  body.appendChild(line);
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -836,9 +853,7 @@ async function refreshUserList() {
 
     row.innerHTML = `<img src="${pfp}" alt=""><span class="u-name">${escapeHtml(name)}</span>`;
 
-    if (uid !== me.uid) {
-      row.addEventListener("click", () => openUserModal(uid));
-    }
+    if (uid !== me.uid) row.addEventListener("click", () => openUserModal(uid));
 
     userList.appendChild(row);
   }
@@ -859,17 +874,12 @@ async function openUserModal(uid) {
   modalBio.textContent  = p.bio || "(no bio)";
 
   modalBlockBtn.textContent = blockedSet.has(uid) ? "Unblock" : "Block";
-
-  // Kick button only for admins
   modalKickBtn.classList.toggle("hidden", !isAdmin());
 
   userModal.classList.remove("hidden");
 }
 
-modalCloseBtn.addEventListener("click", () => {
-  userModal.classList.add("hidden");
-  modalUid = null;
-});
+modalCloseBtn.addEventListener("click", () => { userModal.classList.add("hidden"); modalUid = null; });
 
 modalDmBtn.addEventListener("click", () => {
   if (!modalUid) return;
@@ -906,15 +916,13 @@ modalKickBtn.addEventListener("click", async () => {
     await set(ref(db, `rooms/${currentServerCode}/kicked/${uid}`), true);
     await remove(ref(db, `chats/${currentServerCode}/presence/${uid}`));
     showToast("Kicked");
-  } catch (e) {
-    showToast("Could not kick: " + e.message);
-  }
+  } catch (e) { showToast("Could not kick: " + e.message); }
 
   userModal.classList.add("hidden");
   modalUid = null;
 });
 
-// Kicked manager modal
+// Kicked manager
 kickPanelBtn.addEventListener("click", async () => {
   kickedList.innerHTML = "";
   const snap = await get(ref(db, `rooms/${currentServerCode}/kicked`));
@@ -945,8 +953,41 @@ kickPanelBtn.addEventListener("click", async () => {
   kickedModal.classList.remove("hidden");
 });
 
-closeKickedBtn.addEventListener("click", () => {
-  kickedModal.classList.add("hidden");
+closeKickedBtn.addEventListener("click", () => kickedModal.classList.add("hidden"));
+
+// Room settings (admin)
+roomSettingsBtn.addEventListener("click", () => {
+  settingsRoomName.value = currentRoomMeta?.name || "";
+  settingsRoomPassword.value = "";
+  roomSettingsError.textContent = "";
+  roomSettingsModal.classList.remove("hidden");
+});
+
+cancelRoomSettingsBtn.addEventListener("click", () => roomSettingsModal.classList.add("hidden"));
+
+saveRoomSettingsBtn.addEventListener("click", async () => {
+  if (!isAdmin()) return;
+  roomSettingsError.textContent = "";
+
+  const name = settingsRoomName.value.trim();
+  if (!name || name.length > 40) { roomSettingsError.textContent = "Name must be 1–40 chars"; return; }
+
+  const updates = { name };
+
+  const newPw = settingsRoomPassword.value;
+  if (newPw) {
+    updates.hasPassword = true;
+    updates.passwordHash = hashPassword(newPw);
+  }
+
+  try {
+    await update(ref(db, `rooms/${currentServerCode}`), updates);
+    currentRoomMeta = { ...currentRoomMeta, ...updates };
+    chatHeadTitle.textContent = "# " + name;
+    chatHeadLock.classList.toggle("hidden", !currentRoomMeta.hasPassword);
+    roomSettingsModal.classList.add("hidden");
+    showToast("Room updated");
+  } catch (e) { roomSettingsError.textContent = e.message; }
 });
 
 // ------------------------------------------------------------------
@@ -954,7 +995,7 @@ closeKickedBtn.addEventListener("click", () => {
 // ------------------------------------------------------------------
 
 async function openDm(otherUid) {
-  if (!currentServerCode) { showToast("Join a server code first"); return; }
+  if (!currentServerCode) { showToast("Join a room first"); return; }
   if (dmOnChildOff) { dmOnChildOff(); dmOnChildOff = null; }
 
   activeDmUid = otherUid;
@@ -966,6 +1007,7 @@ async function openDm(otherUid) {
   chatHeadTitle.textContent = "DM with " + other.username;
   closeDmBtn.classList.remove("hidden");
   adminBadge.classList.add("hidden");
+  chatHeadLock.classList.add("hidden");
 
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
@@ -984,6 +1026,7 @@ function exitDmView() {
   closeDmBtn.classList.add("hidden");
   if (currentServerCode) {
     chatHeadTitle.textContent = "# " + (currentRoomMeta?.name || currentServerCode);
+    chatHeadLock.classList.toggle("hidden", !currentRoomMeta?.hasPassword);
     updateAdminUI();
   }
 }
@@ -1023,7 +1066,7 @@ messageInput.addEventListener("keydown", (e) => {
 });
 
 async function sendMessage() {
-  if (!currentServerCode) { showToast("Join a server first"); return; }
+  if (!currentServerCode) { showToast("Join a room first"); return; }
   if (!currentRoomRef) return;
 
   const rawText  = messageInput.value.trim();
@@ -1080,17 +1123,10 @@ fileInput.addEventListener("change", (e) => {
 
   const reader = new FileReader();
   reader.onload = (ev) => {
-    // Revoke any previous preview URL
     if (pendingFile && pendingFile.objectUrl) URL.revokeObjectURL(pendingFile.objectUrl);
 
-    pendingFile = {
-      type,
-      dataUrl: ev.target.result,
-      objectUrl,
-      name: file.name
-    };
+    pendingFile = { type, dataUrl: ev.target.result, objectUrl, name: file.name };
 
-    // Show the preview chip
     filePreviewName.textContent = `${type.toUpperCase()} · ${file.name}`;
     if (type === "video") {
       filePreviewImg.classList.add("hidden");
@@ -1106,9 +1142,7 @@ fileInput.addEventListener("change", (e) => {
   reader.readAsDataURL(file);
 });
 
-filePreviewRemove.addEventListener("click", () => {
-  clearPendingFile();
-});
+filePreviewRemove.addEventListener("click", clearPendingFile);
 
 function clearPendingFile() {
   if (pendingFile && pendingFile.objectUrl) URL.revokeObjectURL(pendingFile.objectUrl);
@@ -1120,9 +1154,71 @@ function clearPendingFile() {
 }
 
 // ------------------------------------------------------------------
+// PROFILE
+// ------------------------------------------------------------------
+
+profileBtn.addEventListener("click", () => {
+  editUsername.value = me.username;
+  editBio.value      = me.bio;
+  editPfp.value      = "";
+  profileError.textContent = "";
+  myProfileAvatar.src = me.pfp || defaultPfp(me.username);
+  profileHeroName.textContent = me.username;
+  profileHeroEmail.textContent = me.email;
+  profileModal.classList.remove("hidden");
+});
+
+editPfp.addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = (ev) => { myProfileAvatar.src = ev.target.result; };
+  r.readAsDataURL(f);
+});
+
+cancelProfileBtn.addEventListener("click", () => profileModal.classList.add("hidden"));
+
+saveProfileBtn.addEventListener("click", async () => {
+  profileError.textContent = "";
+  const newName = editUsername.value.trim();
+  if (newName.length < 2 || newName.length > 24) { profileError.textContent = "Username must be 2–24 chars"; return; }
+
+  let newPfp = me.pfp;
+  if (editPfp.files[0]) {
+    const file = editPfp.files[0];
+    if (file.size > 400 * 1024) { profileError.textContent = "PFP too big (400KB max)"; return; }
+    newPfp = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  try {
+    await update(ref(db, `users/${me.uid}`), {
+      username: newName,
+      bio: editBio.value.trim(),
+      pfp: newPfp
+    });
+
+    me.username = newName;
+    me.bio      = editBio.value.trim();
+    me.pfp      = newPfp;
+
+    myUsernameLabel.textContent = me.username;
+    updateMyPfpButton();
+    userCache.set(me.uid, { uid: me.uid, username: me.username, pfp: me.pfp, bio: me.bio });
+
+    profileModal.classList.add("hidden");
+    showToast("Profile saved");
+    if (currentServerCode) refreshUserList();
+  } catch (e) { profileError.textContent = e.message; }
+});
+
+// ------------------------------------------------------------------
 // BOOT
 // ------------------------------------------------------------------
 
 setStatus(false);
 resetChatUI();
-serverCodeInput.value = "demo-room";

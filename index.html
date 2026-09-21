@@ -8,11 +8,10 @@
 </head>
 <body>
 
-  <!-- ============ AUTH SCREEN ============ -->
+  <!-- ============ AUTH ============ -->
   <div class="auth-screen" id="authScreen">
     <div class="auth-box">
       <h1>IlloComoVamos</h1>
-
       <div class="auth-tabs">
         <button class="auth-tab active" id="tabLogin">Log In</button>
         <button class="auth-tab" id="tabSignup">Sign Up</button>
@@ -35,16 +34,14 @@
     </div>
   </div>
 
-  <!-- ============ MAIN APP ============ -->
+  <!-- ============ APP ROOT ============ -->
   <div class="app hidden" id="appRoot">
 
+    <!-- Top header (shared between lobby and room view) -->
     <div class="header">
       <h1>IlloComoVamos <span id="myUsernameLabel">…</span></h1>
 
-      <div class="server-input-area">
-        <input type="text" id="serverCodeInput" placeholder="Enter server code" value="demo-room">
-        <button id="joinBtn">Join</button>
-      </div>
+      <button class="lobby-btn hidden" id="backToLobbyBtn">← Lobby</button>
 
       <button class="profile-btn" id="profileBtn" title="My Profile">
         <img id="myPfpBtn" alt="">
@@ -57,53 +54,67 @@
       </div>
     </div>
 
-    <div class="body-row">
+    <!-- ============ LOBBY VIEW ============ -->
+    <div class="lobby-view" id="lobbyView">
+      <div class="lobby-head">
+        <h2>Rooms</h2>
+        <button class="primary-btn" id="openCreateRoomBtn">+ Create Room</button>
+      </div>
+      <div class="room-grid" id="roomGrid">
+        <p class="lobby-empty">No rooms yet. Create one.</p>
+      </div>
+    </div>
 
-      <aside class="side-panel">
-        <div class="side-title">Online — <span id="onlineCount">0</span></div>
-        <div class="user-list" id="userList"></div>
+    <!-- ============ ROOM VIEW ============ -->
+    <div class="room-view hidden" id="roomView">
+      <div class="body-row">
 
-        <div class="side-title" id="adminPanelTitle" style="display:none;">Admin</div>
-        <div class="side-admin" id="adminPanel" style="display:none;">
-          <button id="kickPanelBtn">Manage Kicked</button>
-        </div>
-      </aside>
+        <aside class="side-panel">
+          <div class="side-title">Online — <span id="onlineCount">0</span></div>
+          <div class="user-list" id="userList"></div>
 
-      <div class="chat-column">
-
-        <div class="chat-head" id="chatHead">
-          <span id="chatHeadTitle"># demo-room</span>
-          <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
-          <button class="close-dm hidden" id="closeDmBtn">← Back to room</button>
-        </div>
-
-        <div class="chat-container" id="chatContainer">
-          <div class="empty-state" id="emptyState">
-            <span>💬</span>
-            <p>Join a server code to start chatting</p>
+          <div class="side-title hidden" id="adminPanelTitle">Admin</div>
+          <div class="side-admin hidden" id="adminPanel">
+            <button id="kickPanelBtn">Manage Kicked</button>
+            <button id="roomSettingsBtn">Room Settings</button>
           </div>
-        </div>
+        </aside>
 
-        <div class="input-area">
-          <div class="file-preview hidden" id="filePreview">
-            <img id="filePreviewImg" alt="">
-            <video id="filePreviewVideo" controls class="hidden"></video>
-            <div class="file-preview-info">
-              <span id="filePreviewName"></span>
-              <button id="filePreviewRemove">✕</button>
+        <div class="chat-column">
+          <div class="chat-head" id="chatHead">
+            <span id="chatHeadTitle"># room</span>
+            <span class="lock-tag hidden" id="chatHeadLock">🔒</span>
+            <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
+            <button class="close-dm hidden" id="closeDmBtn">← Back to room</button>
+          </div>
+
+          <div class="chat-container" id="chatContainer">
+            <div class="empty-state" id="emptyState">
+              <span>💬</span>
+              <p>No messages yet</p>
             </div>
           </div>
 
-          <div class="input-row">
-            <input type="text" id="messageInput" placeholder="Type a message..." disabled>
-            <label class="file-label" id="fileLabel">
-              Media
-              <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
-            </label>
-            <button class="send-btn" id="sendBtn" disabled>Send</button>
+          <div class="input-area">
+            <div class="file-preview hidden" id="filePreview">
+              <img id="filePreviewImg" alt="">
+              <video id="filePreviewVideo" controls class="hidden"></video>
+              <div class="file-preview-info">
+                <span id="filePreviewName"></span>
+                <button id="filePreviewRemove">✕</button>
+              </div>
+            </div>
+
+            <div class="input-row">
+              <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+              <label class="file-label" id="fileLabel">
+                Media
+                <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
+              </label>
+              <button class="send-btn" id="sendBtn" disabled>Send</button>
+            </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
@@ -127,7 +138,7 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: EDIT MY PROFILE ============ -->
+  <!-- ============ MODAL: MY PROFILE ============ -->
   <div class="modal-backdrop hidden" id="profileModal">
     <div class="modal profile-modal">
       <div class="profile-hero">
@@ -158,7 +169,6 @@
         <button id="saveProfileBtn">Save</button>
         <button class="ghost" id="cancelProfileBtn">Cancel</button>
       </div>
-
       <p class="auth-error" id="profileError"></p>
     </div>
   </div>
@@ -167,11 +177,15 @@
   <div class="modal-backdrop hidden" id="createRoomModal">
     <div class="modal">
       <h2>Create Room</h2>
-      <p class="modal-sub">Room <b id="createRoomCode">—</b> doesn't exist yet.</p>
+
+      <label class="field">
+        <span>Room code (unique id)</span>
+        <input type="text" id="createRoomCodeInput" placeholder="my-room" maxlength="32">
+      </label>
 
       <label class="field">
         <span>Room name</span>
-        <input type="text" id="createRoomName" placeholder="My cool room" maxlength="40">
+        <input type="text" id="createRoomName" placeholder="Lobby Name" maxlength="40">
       </label>
 
       <label class="field">
@@ -183,7 +197,6 @@
         <button id="createRoomBtn">Create</button>
         <button class="ghost" id="cancelCreateRoomBtn">Cancel</button>
       </div>
-
       <p class="auth-error" id="createRoomError"></p>
     </div>
   </div>
@@ -203,7 +216,6 @@
         <button id="submitPasswordBtn">Join</button>
         <button class="ghost" id="cancelPasswordBtn">Cancel</button>
       </div>
-
       <p class="auth-error" id="passwordError"></p>
     </div>
   </div>
@@ -215,10 +227,32 @@
       <div class="kicked-list" id="kickedList">
         <p class="modal-sub">Nobody is kicked.</p>
       </div>
-
       <div class="modal-actions">
         <button class="ghost" id="closeKickedBtn">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: ROOM SETTINGS ============ -->
+  <div class="modal-backdrop hidden" id="roomSettingsModal">
+    <div class="modal">
+      <h2>Room Settings</h2>
+
+      <label class="field">
+        <span>Room name</span>
+        <input type="text" id="settingsRoomName" maxlength="40">
+      </label>
+
+      <label class="field">
+        <span>Change password (leave empty to keep)</span>
+        <input type="password" id="settingsRoomPassword" placeholder="New password">
+      </label>
+
+      <div class="modal-actions">
+        <button id="saveRoomSettingsBtn">Save</button>
+        <button class="ghost" id="cancelRoomSettingsBtn">Cancel</button>
+      </div>
+      <p class="auth-error" id="roomSettingsError"></p>
     </div>
   </div>
 
