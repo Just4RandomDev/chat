@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IlloComoVamos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============ AUTH SCREEN ============ -->
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-box">
+      <h1>IlloComoVamos</h1>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin">Log In</button>
+        <button class="auth-tab" id="tabSignup">Sign Up</button>
+      </div>
+
+      <div class="auth-form" id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button id="loginBtn">Log In</button>
+      </div>
+
+      <div class="auth-form hidden" id="signupForm">
+        <input type="text" id="signupUsername" placeholder="Username">
+        <input type="email" id="signupEmail" placeholder="Email">
+        <input type="password" id="signupPassword" placeholder="Password (6+ chars)">
+        <button id="signupBtn">Create Account</button>
+      </div>
+
+      <p class="auth-error" id="authError"></p>
+    </div>
+  </div>
+
+  <!-- ============ MAIN APP ============ -->
+  <div class="app hidden" id="appRoot">
+
+    <div class="header">
+      <h1>IlloComoVamos <span id="myUsernameLabel">…</span></h1>
+
+      <div class="server-input-area">
+        <input type="text" id="serverCodeInput" placeholder="Enter server code" value="demo-room">
+        <button id="joinBtn">Join</button>
+      </div>
+
+      <button class="icon-btn" id="profileBtn" title="My Profile">👤</button>
+      <button class="icon-btn" id="logoutBtn" title="Log Out">↩</button>
+
+      <div class="status-badge">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">disconnected</span>
+      </div>
+    </div>
+
+    <div class="body-row">
+
+      <aside class="side-panel">
+        <div class="side-title">Online — <span id="onlineCount">0</span></div>
+        <div class="user-list" id="userList"></div>
+      </aside>
+
+      <div class="chat-column">
+
+        <div class="chat-head" id="chatHead">
+          <span id="chatHeadTitle"># demo-room</span>
+          <button class="close-dm hidden" id="closeDmBtn">← Back to room</button>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+          <div class="empty-state" id="emptyState">
+            <span>💬</span>
+            <p>Join a server code to start chatting</p>
+          </div>
+        </div>
+
+        <div class="input-area">
+          <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+          <label class="file-label" id="fileLabel">
+            Media
+            <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
+          </label>
+          <button class="send-btn" id="sendBtn" disabled>Send</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: USER ACTIONS ============ -->
+  <div class="modal-backdrop hidden" id="userModal">
+    <div class="modal">
+      <div class="modal-head">
+        <img class="modal-pfp" id="modalPfp" alt="">
+        <div>
+          <div class="modal-name" id="modalName">—</div>
+          <div class="modal-bio" id="modalBio">—</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="modalDmBtn">Send DM</button>
+        <button id="modalBlockBtn">Block</button>
+        <button class="ghost" id="modalCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: EDIT MY PROFILE ============ -->
+  <div class="modal-backdrop hidden" id="profileModal">
+    <div class="modal">
+      <h2>Edit Profile</h2>
+
+      <label class="field">
+        <span>Username</span>
+        <input type="text" id="editUsername">
+      </label>
+
+      <label class="field">
+        <span>Bio</span>
+        <textarea id="editBio" rows="3"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Profile Picture</span>
+        <input type="file" id="editPfp" accept="image/*">
+      </label>
+
+      <div class="modal-actions">
+        <button id="saveProfileBtn">Save</button>
+        <button class="ghost" id="cancelProfileBtn">Cancel</button>
+      </div>
+
+      <p class="auth-error" id="profileError"></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
