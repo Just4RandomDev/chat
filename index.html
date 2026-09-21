@@ -34,10 +34,9 @@
     </div>
   </div>
 
-  <!-- ============ APP ROOT ============ -->
+  <!-- ============ APP ============ -->
   <div class="app hidden" id="appRoot">
 
-    <!-- Top header (shared between lobby and room view) -->
     <div class="header">
       <h1>IlloComoVamos <span id="myUsernameLabel">…</span></h1>
 
@@ -54,23 +53,29 @@
       </div>
     </div>
 
-    <!-- ============ LOBBY VIEW ============ -->
+    <!-- ============ LOBBY ============ -->
     <div class="lobby-view" id="lobbyView">
       <div class="lobby-head">
         <h2>Rooms</h2>
-        <button class="primary-btn" id="openCreateRoomBtn">+ Create Room</button>
+        <div class="lobby-actions">
+          <button class="secondary-btn" id="openPublicRoomBtn">Public Lobby</button>
+          <button class="primary-btn" id="openCreateRoomBtn">+ Create Room</button>
+        </div>
       </div>
       <div class="room-grid" id="roomGrid">
-        <p class="lobby-empty">No rooms yet. Create one.</p>
+        <p class="lobby-empty">Loading rooms…</p>
       </div>
     </div>
 
-    <!-- ============ ROOM VIEW ============ -->
+    <!-- ============ ROOM ============ -->
     <div class="room-view hidden" id="roomView">
       <div class="body-row">
 
         <aside class="side-panel">
-          <div class="side-title">Online — <span id="onlineCount">0</span></div>
+          <div class="side-title">
+            Online — <span id="onlineCount">0</span>
+            <span id="capacityLabel" class="capacity-label"></span>
+          </div>
           <div class="user-list" id="userList"></div>
 
           <div class="side-title hidden" id="adminPanelTitle">Admin</div>
@@ -189,6 +194,11 @@
       </label>
 
       <label class="field">
+        <span>Max users (2–500)</span>
+        <input type="number" id="createRoomMax" min="2" max="500" value="20">
+      </label>
+
+      <label class="field">
         <span>Password (optional)</span>
         <input type="password" id="createRoomPassword" placeholder="Leave empty for no password">
       </label>
@@ -220,7 +230,7 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: MANAGE KICKED ============ -->
+  <!-- ============ MODAL: KICKED ============ -->
   <div class="modal-backdrop hidden" id="kickedModal">
     <div class="modal">
       <h2>Kicked Users</h2>
@@ -241,6 +251,11 @@
       <label class="field">
         <span>Room name</span>
         <input type="text" id="settingsRoomName" maxlength="40">
+      </label>
+
+      <label class="field">
+        <span>Max users (2–500)</span>
+        <input type="number" id="settingsRoomMax" min="2" max="500">
       </label>
 
       <label class="field">

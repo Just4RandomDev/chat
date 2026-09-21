@@ -17,7 +17,6 @@ import {
   query,
   limitToLast,
   onChildAdded,
-  onChildRemoved,
   onValue,
   off,
   serverTimestamp,
@@ -41,6 +40,18 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
+
+// The always-available public room
+const PUBLIC_ROOM_CODE = "public";
+const PUBLIC_ROOM_META = {
+  name: "Public Lobby",
+  adminUid: "system",
+  hasPassword: false,
+  passwordHash: "",
+  maxUsers: 500,
+  kicked: {},
+  isPublic: true
+};
 
 // ------------------------------------------------------------------
 // ENCRYPTION
@@ -93,11 +104,7 @@ function classifyUrl(url) {
   return "link";
 }
 
-// Build the content of a single message line.
-// If the message is ONLY a media URL, hide the URL and just show the embed.
-// If it's mixed text + URL, keep the text and strip the URL, then show embeds.
 function buildLineContent(lineEl, plainText) {
-  // Collect URLs
   const urls = [];
   const regex = new RegExp(URL_REGEX.source, "gi");
   let m;
@@ -109,64 +116,44 @@ function buildLineContent(lineEl, plainText) {
   });
   const nonMediaUrls = urls.filter(u => classifyUrl(u) === "link");
 
-  // Strip all URLs from the text to get the "rest"
   let rest = plainText.replace(URL_REGEX, "").trim();
 
-  // If there's nothing left besides media URLs, hide the URL entirely.
-  // Only render the embeds.
   if (mediaUrls.length > 0) {
-    // Render remaining text (if any) as plain text with link wrapping for non-media urls
-    if (rest) {
-      lineEl.appendChild(document.createTextNode(rest + " "));
-    }
+    if (rest) lineEl.appendChild(document.createTextNode(rest + " "));
     for (const u of nonMediaUrls) {
       const a = document.createElement("a");
-      a.href = u;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
+      a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
       a.textContent = u;
       lineEl.appendChild(a);
       lineEl.appendChild(document.createTextNode(" "));
     }
-
     for (const u of mediaUrls) {
       const kind = classifyUrl(u);
       if (kind === "image") {
         const img = document.createElement("img");
-        img.src = u;
-        img.loading = "lazy";
-        img.alt = "";
+        img.src = u; img.loading = "lazy"; img.alt = "";
         img.onerror = () => img.remove();
         lineEl.appendChild(img);
       } else {
         const v = document.createElement("video");
-        v.src = u;
-        v.controls = true;
-        v.preload = "metadata";
+        v.src = u; v.controls = true; v.preload = "metadata";
         lineEl.appendChild(v);
       }
     }
     return;
   }
 
-  // No media at all — just render text with clickable links
   let lastIndex = 0;
   const re2 = new RegExp(URL_REGEX.source, "gi");
   while ((m = re2.exec(plainText)) !== null) {
-    if (m.index > lastIndex) {
-      lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex, m.index)));
-    }
+    if (m.index > lastIndex) lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex, m.index)));
     const a = document.createElement("a");
-    a.href = m[0];
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
+    a.href = m[0]; a.target = "_blank"; a.rel = "noopener noreferrer";
     a.textContent = m[0];
     lineEl.appendChild(a);
     lastIndex = re2.lastIndex;
   }
-  if (lastIndex < plainText.length) {
-    lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex)));
-  }
+  if (lastIndex < plainText.length) lineEl.appendChild(document.createTextNode(plainText.slice(lastIndex)));
 }
 
 // ------------------------------------------------------------------
@@ -189,11 +176,10 @@ let groupOnChildOff   = null;
 let dmOnChildOff      = null;
 let lobbyRoomsListener = null;
 
-// Grouping state — track the last group we rendered
-const GROUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-let lastGroupEl = null;     // the .msg-group element
-let lastGroupUid = null;    // uid of the last group
-let lastGroupTime = 0;      // last message timestamp
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+let lastGroupEl = null;
+let lastGroupUid = null;
+let lastGroupTime = 0;
 
 // ------------------------------------------------------------------
 // DOM
@@ -229,8 +215,10 @@ const lobbyView    = $("lobbyView");
 const roomView     = $("roomView");
 const roomGrid     = $("roomGrid");
 const openCreateRoomBtn = $("openCreateRoomBtn");
+const openPublicRoomBtn = $("openPublicRoomBtn");
 
 const onlineCount  = $("onlineCount");
+const capacityLabel = $("capacityLabel");
 const userList     = $("userList");
 const adminPanel   = $("adminPanel");
 const adminPanelTitle = $("adminPanelTitle");
@@ -279,6 +267,7 @@ const profileError = $("profileError");
 const createRoomModal = $("createRoomModal");
 const createRoomCodeInput = $("createRoomCodeInput");
 const createRoomName  = $("createRoomName");
+const createRoomMax   = $("createRoomMax");
 const createRoomPassword = $("createRoomPassword");
 const createRoomBtn   = $("createRoomBtn");
 const cancelCreateRoomBtn = $("cancelCreateRoomBtn");
@@ -297,6 +286,7 @@ const closeKickedBtn = $("closeKickedBtn");
 
 const roomSettingsModal = $("roomSettingsModal");
 const settingsRoomName = $("settingsRoomName");
+const settingsRoomMax  = $("settingsRoomMax");
 const settingsRoomPassword = $("settingsRoomPassword");
 const saveRoomSettingsBtn = $("saveRoomSettingsBtn");
 const cancelRoomSettingsBtn = $("cancelRoomSettingsBtn");
@@ -375,7 +365,9 @@ async function fetchUser(uid) {
   }
 }
 
-function isAdmin() { return me && currentRoomMeta && currentRoomMeta.adminUid === me.uid; }
+function isAdmin() {
+  return me && currentRoomMeta && currentRoomMeta.adminUid === me.uid;
+}
 
 function updateAdminUI() {
   const admin = isAdmin();
@@ -500,7 +492,37 @@ onAuthStateChanged(auth, async (user) => {
   authScreen.classList.add("hidden");
   appRoot.classList.remove("hidden");
   showLobby();
+
+  await ensurePublicRoom();
   startLobbyListener();
+});
+
+// ------------------------------------------------------------------
+// PUBLIC ROOM
+// ------------------------------------------------------------------
+
+async function ensurePublicRoom() {
+  try {
+    const snap = await get(ref(db, `rooms/${PUBLIC_ROOM_CODE}`));
+    if (!snap.exists()) {
+      await set(ref(db, `rooms/${PUBLIC_ROOM_CODE}`), {
+        name: PUBLIC_ROOM_META.name,
+        adminUid: PUBLIC_ROOM_META.adminUid,
+        hasPassword: false,
+        passwordHash: "",
+        maxUsers: PUBLIC_ROOM_META.maxUsers,
+        kicked: {},
+        isPublic: true,
+        createdAt: serverTimestamp()
+      });
+    }
+  } catch (e) {
+    console.warn("Could not ensure public room:", e);
+  }
+}
+
+openPublicRoomBtn.addEventListener("click", () => {
+  requestJoinRoom(PUBLIC_ROOM_CODE);
 });
 
 // ------------------------------------------------------------------
@@ -510,9 +532,14 @@ onAuthStateChanged(auth, async (user) => {
 function startLobbyListener() {
   if (lobbyRoomsListener) lobbyRoomsListener();
   const roomsRef = ref(db, "rooms");
-  lobbyRoomsListener = onValue(roomsRef, (snap) => {
-    renderRoomGrid(snap.val() || {});
-  });
+  lobbyRoomsListener = onValue(
+    roomsRef,
+    (snap) => { renderRoomGrid(snap.val() || {}); },
+    (err) => {
+      console.error("Lobby listener error:", err);
+      roomGrid.innerHTML = '<p class="lobby-empty">Could not load rooms. Check the rules for /rooms.</p>';
+    }
+  );
 }
 
 async function renderRoomGrid(rooms) {
@@ -524,8 +551,10 @@ async function renderRoomGrid(rooms) {
     return;
   }
 
-  // Sort rooms alphabetically by name
   codes.sort((a, b) => {
+    // Public room first, then alphabetical
+    if (a === PUBLIC_ROOM_CODE) return -1;
+    if (b === PUBLIC_ROOM_CODE) return 1;
     const na = (rooms[a].name || a).toLowerCase();
     const nb = (rooms[b].name || b).toLowerCase();
     return na.localeCompare(nb);
@@ -536,22 +565,23 @@ async function renderRoomGrid(rooms) {
     const card = document.createElement("div");
     card.className = "room-card";
 
-    // Count members from presence
     let memberCount = 0;
     try {
       const presSnap = await get(ref(db, `chats/${code}/presence`));
       memberCount = Object.keys(presSnap.val() || {}).length;
     } catch {}
 
+    const max = r.maxUsers || 50;
     const icons = [];
     if (r.hasPassword) icons.push('<span title="Password protected">🔒</span>');
+    if (r.isPublic) icons.push('<span title="Public">🌐</span>');
     if (r.adminUid === me?.uid) icons.push('<span title="You are admin">👑</span>');
 
     card.innerHTML = `
       <div class="rc-name">${escapeHtml(r.name || code)}</div>
       <div class="rc-code">${escapeHtml(code)}</div>
       <div class="rc-meta">
-        <span>${memberCount} online</span>
+        <span>${memberCount} / ${max}</span>
         <div class="rc-icons">${icons.join("")}</div>
       </div>
     `;
@@ -564,23 +594,20 @@ async function renderRoomGrid(rooms) {
 openCreateRoomBtn.addEventListener("click", () => {
   createRoomCodeInput.value = "";
   createRoomName.value = "";
+  createRoomMax.value = "20";
   createRoomPassword.value = "";
   createRoomError.textContent = "";
   createRoomModal.classList.remove("hidden");
 });
 
 // ------------------------------------------------------------------
-// JOIN / CREATE ROOM
+// JOIN / CREATE
 // ------------------------------------------------------------------
 
 async function requestJoinRoom(code) {
   const roomSnap = await get(ref(db, `rooms/${code}`));
   if (!roomSnap.exists()) {
-    createRoomCodeInput.value = code;
-    createRoomName.value = "";
-    createRoomPassword.value = "";
-    createRoomError.textContent = "";
-    createRoomModal.classList.remove("hidden");
+    showToast("That room no longer exists");
     return;
   }
 
@@ -588,6 +615,18 @@ async function requestJoinRoom(code) {
 
   if (room.kicked && room.kicked[me.uid]) {
     showToast("You've been kicked from this room");
+    return;
+  }
+
+  // Capacity check
+  const max = room.maxUsers || 50;
+  const presSnap = await get(ref(db, `chats/${code}/presence`));
+  const presData = presSnap.val() || {};
+  const inRoom = !!presData[me.uid];
+  const count = Object.keys(presData).length;
+
+  if (!inRoom && count >= max) {
+    showToast(`Room is full (${count}/${max})`);
     return;
   }
 
@@ -605,13 +644,15 @@ async function requestJoinRoom(code) {
 createRoomBtn.addEventListener("click", async () => {
   const code = createRoomCodeInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
   const name = createRoomName.value.trim() || code;
+  const max  = parseInt(createRoomMax.value, 10) || 20;
   const pw   = createRoomPassword.value;
 
   createRoomError.textContent = "";
   if (code.length < 2) { createRoomError.textContent = "Code must be 2+ chars (a-z, 0-9, -, _)"; return; }
+  if (code === PUBLIC_ROOM_CODE) { createRoomError.textContent = "That code is reserved"; return; }
   if (name.length > 40) { createRoomError.textContent = "Name too long"; return; }
+  if (max < 2 || max > 500) { createRoomError.textContent = "Max users must be 2–500"; return; }
 
-  // Check if it already exists
   const exists = await get(ref(db, `rooms/${code}`));
   if (exists.exists()) { createRoomError.textContent = "That code is taken"; return; }
 
@@ -621,6 +662,7 @@ createRoomBtn.addEventListener("click", async () => {
     createdAt: serverTimestamp(),
     hasPassword: !!pw,
     passwordHash: pw ? hashPassword(pw) : "",
+    maxUsers: max,
     kicked: {}
   };
 
@@ -647,6 +689,12 @@ submitPasswordBtn.addEventListener("click", async () => {
   if (room.passwordHash !== hashPassword(pw)) { passwordError.textContent = "Wrong password"; return; }
   if (room.kicked && room.kicked[me.uid]) { passwordError.textContent = "You've been kicked"; return; }
 
+  // Capacity re-check
+  const max = room.maxUsers || 50;
+  const presSnap = await get(ref(db, `chats/${code}/presence`));
+  const count = Object.keys(presSnap.val() || {}).length;
+  if (count >= max) { passwordError.textContent = `Room is full (${count}/${max})`; return; }
+
   passwordModal.classList.add("hidden");
   await enterRoom(code, room);
 });
@@ -668,6 +716,9 @@ async function enterRoom(code, roomMeta) {
 
   chatHeadTitle.textContent = "# " + (roomMeta.name || code);
   chatHeadLock.classList.toggle("hidden", !roomMeta.hasPassword);
+
+  const max = roomMeta.maxUsers || 50;
+  capacityLabel.textContent = "/ " + max;
 
   const handleChild = (snapshot) => {
     const msg = snapshot.val();
@@ -725,13 +776,11 @@ backToLobbyBtn.addEventListener("click", async () => {
 async function renderMessage(msgId, msg, isOwn) {
   const sender = await fetchUser(msg.uid);
 
-  // Decide whether to start a new group
   const now = msg.timestamp || Date.now();
   const sameUser = lastGroupUid === msg.uid;
   const withinWindow = (now - lastGroupTime) < GROUP_WINDOW_MS;
   const inDmView = !!activeDmUid;
 
-  // If the group is for a different context (switched DM / room), start fresh
   if (!lastGroupEl || !sameUser || !withinWindow) {
     const group = document.createElement("div");
     group.className = "msg-group" + (isOwn ? " own" : "");
@@ -758,7 +807,6 @@ async function renderMessage(msgId, msg, isOwn) {
 
   const body = lastGroupEl.querySelector(".group-body");
 
-  // Build the message line
   const line = document.createElement("div");
   line.className = "msg-line";
   line.dataset.msgId = msgId;
@@ -779,8 +827,7 @@ async function renderMessage(msgId, msg, isOwn) {
     if (src && src.startsWith("data:")) {
       if (msg.mediaType === "image" || msg.mediaType === "gif") {
         const img = document.createElement("img");
-        img.src = src;
-        img.loading = "lazy";
+        img.src = src; img.loading = "lazy";
         line.appendChild(img);
         if (msg.mediaType === "gif") {
           const t = document.createElement("span");
@@ -790,9 +837,7 @@ async function renderMessage(msgId, msg, isOwn) {
         }
       } else if (msg.mediaType === "video") {
         const v = document.createElement("video");
-        v.src = src;
-        v.controls = true;
-        v.preload = "metadata";
+        v.src = src; v.controls = true; v.preload = "metadata";
         line.appendChild(v);
       }
     }
@@ -807,7 +852,6 @@ async function renderMessage(msgId, msg, isOwn) {
       try {
         await remove(ref(db, `chats/${currentServerCode}/messages/${msgId}`));
         line.remove();
-        // If group body is empty, remove the whole group
         if (!body.children.length) lastGroupEl.remove();
       } catch (e) { showToast("Could not delete: " + e.message); }
     });
@@ -874,7 +918,7 @@ async function openUserModal(uid) {
   modalBio.textContent  = p.bio || "(no bio)";
 
   modalBlockBtn.textContent = blockedSet.has(uid) ? "Unblock" : "Block";
-  modalKickBtn.classList.toggle("hidden", !isAdmin());
+  modalKickBtn.classList.toggle("hidden", !isAdmin() || currentRoomMeta?.isPublic);
 
   userModal.classList.remove("hidden");
 }
@@ -910,6 +954,7 @@ modalBlockBtn.addEventListener("click", async () => {
 
 modalKickBtn.addEventListener("click", async () => {
   if (!modalUid || !isAdmin()) return;
+  if (currentRoomMeta?.isPublic) return;
   const uid = modalUid;
 
   try {
@@ -958,6 +1003,7 @@ closeKickedBtn.addEventListener("click", () => kickedModal.classList.add("hidden
 // Room settings (admin)
 roomSettingsBtn.addEventListener("click", () => {
   settingsRoomName.value = currentRoomMeta?.name || "";
+  settingsRoomMax.value  = currentRoomMeta?.maxUsers || 20;
   settingsRoomPassword.value = "";
   roomSettingsError.textContent = "";
   roomSettingsModal.classList.remove("hidden");
@@ -970,9 +1016,11 @@ saveRoomSettingsBtn.addEventListener("click", async () => {
   roomSettingsError.textContent = "";
 
   const name = settingsRoomName.value.trim();
+  const max  = parseInt(settingsRoomMax.value, 10) || 20;
   if (!name || name.length > 40) { roomSettingsError.textContent = "Name must be 1–40 chars"; return; }
+  if (max < 2 || max > 500) { roomSettingsError.textContent = "Max users must be 2–500"; return; }
 
-  const updates = { name };
+  const updates = { name, maxUsers: max };
 
   const newPw = settingsRoomPassword.value;
   if (newPw) {
@@ -985,6 +1033,7 @@ saveRoomSettingsBtn.addEventListener("click", async () => {
     currentRoomMeta = { ...currentRoomMeta, ...updates };
     chatHeadTitle.textContent = "# " + name;
     chatHeadLock.classList.toggle("hidden", !currentRoomMeta.hasPassword);
+    capacityLabel.textContent = "/ " + max;
     roomSettingsModal.classList.add("hidden");
     showToast("Room updated");
   } catch (e) { roomSettingsError.textContent = e.message; }
