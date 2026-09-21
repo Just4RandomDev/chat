@@ -76,7 +76,6 @@
             <span class="head-icon hidden" id="chatHeadLock"></span>
             <span class="head-icon hidden" id="chatHeadPublic"></span>
             <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
-            <button class="close-dm hidden" id="closeDmBtn" data-i18n="backToRoom">← Back to room</button>
           </div>
 
           <div class="chat-container" id="chatContainer">
@@ -115,6 +114,44 @@
             </div>
           </div>
         </div>
+
+        <aside class="dm-panel hidden" id="dmPanel">
+          <div class="dm-head">
+            <span id="dmHeadTitle">DM</span>
+            <button class="dm-close" id="dmCloseBtn">✕</button>
+          </div>
+          <div class="dm-messages" id="dmMessages">
+            <div class="empty-state" id="dmEmptyState">
+              <p data-i18n="noMessages">No messages yet</p>
+            </div>
+          </div>
+          <div class="dm-input-area">
+            <div class="reply-bar hidden" id="dmReplyBar">
+              <div class="reply-bar-text">
+                <span data-i18n="replyingTo">Replying to</span>
+                <b id="dmReplyBarName">—</b>
+                <span class="reply-bar-preview" id="dmReplyBarPreview"></span>
+              </div>
+              <button class="reply-bar-cancel" id="dmReplyBarCancel">✕</button>
+            </div>
+            <div class="file-preview hidden" id="dmFilePreview">
+              <img id="dmFilePreviewImg" alt="">
+              <video id="dmFilePreviewVideo" controls class="hidden"></video>
+              <div class="file-preview-info">
+                <span id="dmFilePreviewName"></span>
+                <button id="dmFilePreviewRemove">✕</button>
+              </div>
+            </div>
+            <div class="input-row">
+              <input type="text" id="dmInput" placeholder="Type a DM..." disabled>
+              <label class="file-label" id="dmFileLabel" title="Attach">
+                <img class="icon-img" id="dmPaperclipIcon" alt="">
+                <input type="file" id="dmFileInput" accept="image/*,video/*,image/gif" disabled>
+              </label>
+              <button class="send-btn" id="dmSendBtn" disabled>Send</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </div>
