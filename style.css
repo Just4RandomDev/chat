@@ -56,7 +56,6 @@ body {
 
 .hidden { display: none !important; }
 
-/* ---------- Icon mask system ---------- */
 .icon-img {
   display: inline-block;
   width: 18px;
@@ -71,7 +70,8 @@ body {
   flex-shrink: 0;
 }
 
-/* ---------- Auth ---------- */
+.empty-icon { width: 48px; height: 48px; opacity: 0.6; }
+
 .auth-screen {
   min-height: 100vh;
   display: flex;
@@ -153,7 +153,6 @@ body {
   text-align: center;
 }
 
-/* ---------- App shell ---------- */
 .app {
   max-width: 1600px;
   margin: 0 auto;
@@ -268,7 +267,6 @@ body {
 
 .dot.online { background: #0a0; border-color: #070; }
 
-/* ---------- Lobby ---------- */
 .lobby-view { padding: 20px; }
 
 .lobby-head {
@@ -380,7 +378,6 @@ body {
 .room-card .rc-icons { display: flex; gap: 6px; align-items: center; }
 .room-card .rc-icons .icon-img { width: 14px; height: 14px; }
 
-/* ---------- Room layout ---------- */
 .body-row { display: flex; min-height: 600px; max-height: 78vh; }
 
 .side-panel {
@@ -478,7 +475,6 @@ body {
 .user-item.offline img { filter: grayscale(0.8); opacity: 0.55; }
 .user-item.offline .u-name { color: var(--text-dim); }
 
-/* ---------- Chat ---------- */
 .chat-column { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .chat-head {
@@ -571,7 +567,6 @@ body {
 
 .msg-group.own .msg-line { color: var(--name-own); }
 
-/* Discord-style hover actions */
 .msg-actions {
   position: absolute;
   top: -14px;
@@ -638,19 +633,8 @@ body {
   border-radius: 4px;
 }
 
-.reply-preview .rp-name {
-  font-weight: 700;
-  color: var(--accent);
-  font-size: 12px;
-}
-
-.reply-preview .rp-text {
-  font-size: 13px;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.reply-preview .rp-name { font-weight: 700; color: var(--accent); font-size: 12px; }
+.reply-preview .rp-text { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .msg-line img,
 .msg-line video {
@@ -687,7 +671,6 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- Input area ---------- */
 .input-area {
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
@@ -791,11 +774,7 @@ body {
   justify-content: center;
 }
 
-.send-btn.icon-only .icon-img {
-  width: 20px;
-  height: 20px;
-  background-color: currentColor;
-}
+.send-btn.icon-only .icon-img { width: 20px; height: 20px; background-color: currentColor; }
 
 .file-preview {
   display: flex;
@@ -817,14 +796,7 @@ body {
 }
 
 .file-preview-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-
-.file-preview-info span {
-  font-size: 13px;
-  color: var(--text-dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.file-preview-info span { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .file-preview-info button {
   align-self: flex-start;
@@ -838,7 +810,6 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- Empty state ---------- */
 .empty-state {
   text-align: center;
   color: var(--text-dim);
@@ -850,9 +821,6 @@ body {
   font-size: 16px;
 }
 
-.empty-icon { width: 48px; height: 48px; opacity: 0.6; }
-
-/* ---------- DM panel ---------- */
 .dm-panel {
   width: 380px;
   flex-shrink: 0;
@@ -909,12 +877,7 @@ body {
 .dm-messages::-webkit-scrollbar-track { background: var(--bg-panel); }
 .dm-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-.dm-messages .empty-state {
-  padding: 30px 0;
-  font-size: 14px;
-  flex: 1;
-  justify-content: center;
-}
+.dm-messages .empty-state { padding: 30px 0; font-size: 14px; flex: 1; justify-content: center; }
 
 .dm-input-area {
   background: var(--bg-panel);
@@ -926,12 +889,7 @@ body {
   flex-shrink: 0;
 }
 
-.dm-input-area .input-row {
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-  flex-wrap: nowrap;
-}
+.dm-input-area .input-row { display: flex; gap: 6px; align-items: stretch; flex-wrap: nowrap; }
 
 .dm-input-area .input-row input[type="text"] {
   flex: 1 1 auto;
@@ -949,7 +907,6 @@ body {
 .dm-messages .msg-group .group-head { font-size: 13px; }
 .dm-messages .msg-group .group-head img.mini-pfp { width: 18px; height: 18px; }
 
-/* ---------- Notifications ---------- */
 .notif-dropdown {
   position: absolute;
   top: 70px;
@@ -978,14 +935,7 @@ body {
   text-transform: uppercase;
 }
 
-.ghost-mini {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 12px;
-  cursor: pointer;
-}
-
+.ghost-mini { background: none; border: none; color: var(--text-dim); font-size: 12px; cursor: pointer; }
 .ghost-mini:hover { color: var(--accent-hover); }
 
 .notif-list { overflow-y: auto; max-height: 380px; }
@@ -1013,7 +963,6 @@ body {
   font-size: 13px;
 }
 
-/* ---------- Modals ---------- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1036,13 +985,7 @@ body {
   border-radius: 8px;
 }
 
-.modal h2 {
-  font-family: Tahoma, serif;
-  color: var(--accent);
-  font-size: 22px;
-  margin-bottom: 14px;
-}
-
+.modal h2 { font-family: Tahoma, serif; color: var(--accent); font-size: 22px; margin-bottom: 14px; }
 .modal-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }
 
 .modal-head {
@@ -1113,7 +1056,6 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- Revamped profile ---------- */
 .profile-modal { max-width: 520px; }
 
 .profile-hero {
@@ -1171,20 +1113,8 @@ body {
 .profile-avatar-edit input { display: none; }
 .profile-avatar-edit .icon-img { background-color: #fff; width: 16px; height: 16px; }
 
-.profile-hero-name {
-  margin-top: 14px;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--name);
-  text-align: center;
-}
-
-.profile-hero-email {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-top: 4px;
-  text-align: center;
-}
+.profile-hero-name { margin-top: 14px; font-size: 24px; font-weight: 700; color: var(--name); text-align: center; }
+.profile-hero-email { font-size: 13px; color: var(--text-dim); margin-top: 4px; text-align: center; }
 
 .profile-hero-meta {
   font-size: 12px;
@@ -1212,7 +1142,6 @@ body {
   color: var(--text-dim);
 }
 
-/* ---------- Kicked list ---------- */
 .kicked-list {
   max-height: 240px;
   overflow-y: auto;
@@ -1255,7 +1184,6 @@ body {
 
 .kicked-row button:hover { background: var(--bg-panel); color: var(--accent-hover); }
 
-/* ---------- Settings ---------- */
 .settings-wide { max-width: 720px; }
 .css-wide { max-width: 820px; }
 
@@ -1307,7 +1235,6 @@ body {
   letter-spacing: 1px;
 }
 
-/* Preset grid */
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -1335,13 +1262,8 @@ body {
   border-radius: 3px;
   border: 1px solid rgba(0, 0, 0, 0.3);
 }
-.preset-btn .preset-name {
-  font-size: 12px;
-  color: var(--text-bright);
-  font-weight: 700;
-}
+.preset-btn .preset-name { font-size: 12px; color: var(--text-bright); font-weight: 700; }
 
-/* Color grid */
 .color-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1390,7 +1312,6 @@ body {
   text-transform: lowercase;
 }
 
-/* Custom CSS textarea */
 #customCssInput {
   width: 100%;
   min-height: 320px;
@@ -1406,7 +1327,6 @@ body {
   line-height: 1.5;
 }
 
-/* ---------- Bot messages ---------- */
 .bot-tag {
   display: inline-block;
   background: #5865f2;
@@ -1422,7 +1342,6 @@ body {
 }
 
 .msg-group.bot .group-head { color: #5865f2; }
-.msg-group.bot .group-head img.mini-pfp { filter: none; }
 
 .advisory-line {
   background: rgba(88, 101, 242, 0.1);
@@ -1434,7 +1353,6 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- Toast ---------- */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -1457,19 +1375,13 @@ body {
 
 .toast.show { opacity: 1; }
 
-/* ---------- Small screens ---------- */
 @media (max-width: 900px) {
   .dm-panel { width: 280px; }
 }
 
 @media (max-width: 640px) {
   .side-panel { width: 140px; }
-  .dm-panel {
-    width: 100%;
-    position: absolute;
-    inset: 0;
-    z-index: 300;
-  }
+  .dm-panel { width: 100%; position: absolute; inset: 0; z-index: 300; }
   .header h1 { font-size: 18px; }
   .auth-box { padding: 24px; }
   .auth-box h1 { font-size: 30px; }
