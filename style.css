@@ -378,7 +378,12 @@ body {
 .room-card .rc-icons { display: flex; gap: 6px; align-items: center; }
 .room-card .rc-icons .icon-img { width: 14px; height: 14px; }
 
-.body-row { display: flex; min-height: 600px; max-height: 78vh; }
+.body-row {
+  display: flex;
+  min-height: 600px;
+  max-height: 78vh;
+  align-items: stretch;
+}
 
 .side-panel {
   width: 240px;
@@ -829,7 +834,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
+  height: auto;
   position: relative;
   z-index: 10;
 }
@@ -864,7 +869,7 @@ body {
 
 .dm-messages {
   flex: 1 1 0;
-  min-height: 200px;
+  min-height: 0;
   overflow-y: auto;
   padding: 10px 14px;
   background: var(--bg);
