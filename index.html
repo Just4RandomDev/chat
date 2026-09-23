@@ -1,354 +1,344 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IlloComoVamos</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IlloComoVamos</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body data-theme="dark">
-  <div class="auth-screen" id="authScreen">
-    <div class="auth-box">
-      <h1>IlloComoVamos</h1>
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tabLogin" data-i18n="tabLogin">Log In</button>
-        <button class="auth-tab" id="tabSignup" data-i18n="tabSignup">Sign Up</button>
-      </div>
-      <div class="auth-form" id="loginForm">
-        <input type="email" id="loginEmail" placeholder="Email" data-i18n-ph="email">
-        <input type="password" id="loginPassword" placeholder="Password" data-i18n-ph="password">
-        <button id="loginBtn" data-i18n="loginBtn">Log In</button>
-      </div>
-      <div class="auth-form hidden" id="signupForm">
-        <input type="text" id="signupUsername" placeholder="Username" data-i18n-ph="username">
-        <input type="email" id="signupEmail" placeholder="Email" data-i18n-ph="email">
-        <input type="password" id="signupPassword" placeholder="Password (6+ chars)" data-i18n-ph="password6">
-        <button id="signupBtn" data-i18n="signupBtn">Create Account</button>
-      </div>
-      <p class="auth-error" id="authError"></p>
-    </div>
-  </div>
+<div class="auth-screen" id="authScreen">
+<div class="auth-box">
+<h1>IlloComoVamos</h1>
+<div class="auth-tabs">
+<button class="auth-tab active" id="tabLogin" data-i18n="tabLogin">Log In</button>
+<button class="auth-tab" id="tabSignup" data-i18n="tabSignup">Sign Up</button>
+</div>
+<div class="auth-form" id="loginForm">
+<input type="email" id="loginEmail" placeholder="Email" data-i18n-ph="email">
+<input type="password" id="loginPassword" placeholder="Password" data-i18n-ph="password">
+<button id="loginBtn" data-i18n="loginBtn">Log In</button>
+</div>
+<div class="auth-form hidden" id="signupForm">
+<input type="text" id="signupUsername" placeholder="Username" data-i18n-ph="username">
+<input type="email" id="signupEmail" placeholder="Email" data-i18n-ph="email">
+<input type="password" id="signupPassword" placeholder="Password (6+ chars)" data-i18n-ph="password6">
+<button id="signupBtn" data-i18n="signupBtn">Create Account</button>
+</div>
+<p class="auth-error" id="authError"></p>
+</div>
+</div>
 
-  <div class="app hidden" id="appRoot">
-    <div class="header">
-      <h1>IlloComoVamos <span id="myUsernameLabel">…</span></h1>
-      <button class="lobby-btn hidden" id="backToLobbyBtn" data-i18n="backToLobby">← Lobby</button>
-      <button class="icon-btn notification-btn" id="notifBtn" title="Notifications">
-        <img class="icon-img" id="notifIcon" alt="">
-        <span class="notif-badge hidden" id="notifBadge">0</span>
-      </button>
-      <button class="icon-btn" id="settingsBtn" title="Settings"><img class="icon-img" id="settingsIcon" alt=""></button>
-      <button class="profile-btn" id="profileBtn" title="My Profile"><img id="myPfpBtn" alt=""></button>
-      <div class="status-badge">
-        <span class="dot" id="statusDot"></span>
-        <span id="statusText">disconnected</span>
-      </div>
-    </div>
+<div class="app hidden" id="appRoot">
+<div class="header">
+<h1>IlloComoVamos <span id="myUsernameLabel">…</span></h1>
+<button class="lobby-btn hidden" id="backToLobbyBtn" data-i18n="backToLobby">← Lobby</button>
+<button class="icon-btn notification-btn" id="notifBtn" title="Notifications">
+<span class="icon-img" id="notifIcon"></span>
+<span class="notif-badge hidden" id="notifBadge">0</span>
+</button>
+<button class="icon-btn" id="settingsBtn" title="Settings"><span class="icon-img" id="settingsIcon"></span></button>
+<button class="profile-btn" id="profileBtn" title="My Profile"><img id="myPfpBtn" alt=""></button>
+<div class="status-badge">
+<span class="dot" id="statusDot"></span>
+<span id="statusText">disconnected</span>
+</div>
+</div>
 
-    <div class="lobby-view" id="lobbyView">
-      <div class="lobby-head">
-        <h2 data-i18n="rooms">Rooms</h2>
-        <div class="lobby-actions">
-          <button class="primary-btn" id="openCreateRoomBtn" data-i18n="createRoom">+ Create Room</button>
-        </div>
-      </div>
-      <div class="room-grid" id="roomGrid"><p class="lobby-empty">Loading rooms…</p></div>
-    </div>
+<div class="lobby-view" id="lobbyView">
+<div class="lobby-head">
+<h2 data-i18n="rooms">Rooms</h2>
+<div class="lobby-actions">
+<button class="primary-btn" id="openCreateRoomBtn" data-i18n="createRoom">+ Create Room</button>
+</div>
+</div>
+<div class="room-grid" id="roomGrid"><p class="lobby-empty">Loading rooms…</p></div>
+</div>
 
-    <div class="room-view hidden" id="roomView">
-      <div class="body-row">
-        <aside class="side-panel">
-          <div class="side-title">
-            <span data-i18n="online">Online</span> — <span id="onlineCount">0</span>
-            <span id="capacityLabel" class="capacity-label"></span>
-          </div>
-          <div class="user-list" id="userList"></div>
+<div class="room-view hidden" id="roomView">
+<div class="body-row">
+<aside class="side-panel">
+<div class="side-title">
+<span data-i18n="online">Online</span> — <span id="onlineCount">0</span>
+<span id="capacityLabel" class="capacity-label"></span>
+</div>
+<div class="user-list" id="userList"></div>
+<div class="side-title side-title-offline" id="offlineTitle">
+<span data-i18n="offline">Offline</span> — <span id="offlineCount">0</span>
+</div>
+<div class="user-list" id="offlineList"></div>
+<div class="side-title hidden" id="adminPanelTitle" data-i18n="admin">Admin</div>
+<div class="side-admin hidden" id="adminPanel">
+<button id="kickPanelBtn" data-i18n="manageKicked">Manage Kicked</button>
+<button id="roomSettingsBtn" data-i18n="roomSettings">Room Settings</button>
+</div>
+</aside>
 
-          <div class="side-title side-title-offline" id="offlineTitle">
-            <span data-i18n="offline">Offline</span> — <span id="offlineCount">0</span>
-          </div>
-          <div class="user-list" id="offlineList"></div>
+<div class="chat-column">
+<div class="chat-head" id="chatHead">
+<span id="chatHeadTitle"># room</span>
+<span class="head-icon hidden" id="chatHeadLock"></span>
+<span class="head-icon hidden" id="chatHeadPublic"></span>
+<span class="admin-badge hidden" id="adminBadge">ADMIN</span>
+</div>
 
-          <div class="side-title hidden" id="adminPanelTitle" data-i18n="admin">Admin</div>
-          <div class="side-admin hidden" id="adminPanel">
-            <button id="kickPanelBtn" data-i18n="manageKicked">Manage Kicked</button>
-            <button id="roomSettingsBtn" data-i18n="roomSettings">Room Settings</button>
-          </div>
-        </aside>
+<div class="chat-container" id="chatContainer">
+<div class="empty-state" id="emptyState">
+<span class="empty-icon icon-img" id="emptyIcon"></span>
+<p data-i18n="noMessages">No messages yet</p>
+</div>
+</div>
 
-        <div class="chat-column">
-          <div class="chat-head" id="chatHead">
-            <span id="chatHeadTitle"># room</span>
-            <span class="head-icon hidden" id="chatHeadLock"></span>
-            <span class="head-icon hidden" id="chatHeadPublic"></span>
-            <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
-          </div>
+<div class="input-area">
+<div class="reply-bar hidden" id="replyBar">
+<div class="reply-bar-text">
+<span data-i18n="replyingTo">Replying to</span>
+<b id="replyBarName">—</b>
+<span class="reply-bar-preview" id="replyBarPreview"></span>
+</div>
+<button class="reply-bar-cancel" id="replyBarCancel">✕</button>
+</div>
+<div class="file-preview hidden" id="filePreview">
+<img id="filePreviewImg" alt="">
+<video id="filePreviewVideo" controls class="hidden"></video>
+<div class="file-preview-info">
+<span id="filePreviewName"></span>
+<button id="filePreviewRemove">✕</button>
+</div>
+</div>
+<div class="input-row">
+<input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled>
+<label class="file-label" id="fileLabel" title="Attach">
+<span class="icon-img" id="paperclipIcon"></span>
+<input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
+</label>
+<button class="send-btn icon-only" id="sendBtn" disabled title="Send">
+<span class="icon-img" id="sendIcon"></span>
+</button>
+</div>
+</div>
+</div>
 
-          <div class="chat-container" id="chatContainer">
-            <div class="empty-state" id="emptyState">
-              <img class="empty-icon" id="emptyIcon" alt="">
-              <p data-i18n="noMessages">No messages yet</p>
-            </div>
-          </div>
+<aside class="dm-panel hidden" id="dmPanel">
+<div class="dm-head">
+<span id="dmHeadTitle">DM</span>
+<button class="dm-close" id="dmCloseBtn">✕</button>
+</div>
+<div class="dm-messages" id="dmMessages">
+<div class="empty-state" id="dmEmptyState">
+<p data-i18n="noMessages">No messages yet</p>
+</div>
+</div>
+<div class="dm-input-area">
+<div class="reply-bar hidden" id="dmReplyBar">
+<div class="reply-bar-text">
+<span data-i18n="replyingTo">Replying to</span>
+<b id="dmReplyBarName">—</b>
+<span class="reply-bar-preview" id="dmReplyBarPreview"></span>
+</div>
+<button class="reply-bar-cancel" id="dmReplyBarCancel">✕</button>
+</div>
+<div class="file-preview hidden" id="dmFilePreview">
+<img id="dmFilePreviewImg" alt="">
+<video id="dmFilePreviewVideo" controls class="hidden"></video>
+<div class="file-preview-info">
+<span id="dmFilePreviewName"></span>
+<button id="dmFilePreviewRemove">✕</button>
+</div>
+</div>
+<div class="input-row">
+<input type="text" id="dmInput" placeholder="Type a DM..." disabled>
+<label class="file-label" id="dmFileLabel" title="Attach">
+<span class="icon-img" id="dmPaperclipIcon"></span>
+<input type="file" id="dmFileInput" accept="image/*,video/*,image/gif" disabled>
+</label>
+<button class="send-btn icon-only" id="dmSendBtn" disabled title="Send">
+<span class="icon-img" id="dmSendIcon"></span>
+</button>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</div>
 
-          <div class="input-area">
-            <div class="reply-bar hidden" id="replyBar">
-              <div class="reply-bar-text">
-                <span data-i18n="replyingTo">Replying to</span>
-                <b id="replyBarName">—</b>
-                <span class="reply-bar-preview" id="replyBarPreview"></span>
-              </div>
-              <button class="reply-bar-cancel" id="replyBarCancel">✕</button>
-            </div>
+<div class="notif-dropdown hidden" id="notifDropdown">
+<div class="notif-head">
+<span data-i18n="notifications">Notifications</span>
+<button class="ghost-mini" id="markAllReadBtn" data-i18n="markAllRead">Mark all read</button>
+</div>
+<div class="notif-list" id="notifList"><p class="notif-empty" data-i18n="noNotifications">No notifications</p></div>
+</div>
 
-            <div class="file-preview hidden" id="filePreview">
-              <img id="filePreviewImg" alt="">
-              <video id="filePreviewVideo" controls class="hidden"></video>
-              <div class="file-preview-info">
-                <span id="filePreviewName"></span>
-                <button id="filePreviewRemove">✕</button>
-              </div>
-            </div>
+<div class="modal-backdrop hidden" id="userModal">
+<div class="modal">
+<div class="modal-head">
+<img class="modal-pfp" id="modalPfp" alt="">
+<div>
+<div class="modal-name" id="modalName">—</div>
+<div class="modal-bio" id="modalBio">—</div>
+</div>
+</div>
+<div class="modal-actions">
+<button id="modalDmBtn" data-i18n="sendDm">Send DM</button>
+<button id="modalBlockBtn" data-i18n="block">Block</button>
+<button id="modalKickBtn" class="danger hidden" data-i18n="kick">Kick from room</button>
+<button class="ghost" id="modalCloseBtn" data-i18n="close">Close</button>
+</div>
+</div>
+</div>
 
-            <div class="input-row">
-              <input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled>
-              <label class="file-label" id="fileLabel" title="Attach">
-                <img class="icon-img" id="paperclipIcon" alt="">
-                <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
-              </label>
-              <button class="send-btn" id="sendBtn" data-i18n="send" disabled>Send</button>
-            </div>
-          </div>
-        </div>
+<div class="modal-backdrop hidden" id="profileModal">
+<div class="modal profile-modal">
+<div class="profile-hero">
+<div class="profile-banner"></div>
+<div class="profile-avatar-wrap">
+<img class="profile-avatar" id="myProfileAvatar" alt="">
+<label class="profile-avatar-edit">
+<span class="icon-img" id="editPfpIcon"></span>
+<input type="file" id="editPfp" accept="image/*">
+</label>
+</div>
+<div class="profile-hero-name" id="profileHeroName">—</div>
+<div class="profile-hero-email" id="profileHeroEmail">—</div>
+<div class="profile-hero-meta" id="profileHeroMeta"></div>
+</div>
+<h2 data-i18n="editProfile">Edit Profile</h2>
+<label class="field"><span data-i18n="username">Username</span><input type="text" id="editUsername" maxlength="24"></label>
+<label class="field"><span data-i18n="bio">Bio</span><textarea id="editBio" rows="3" maxlength="200"></textarea></label>
+<div class="modal-actions">
+<button id="saveProfileBtn" data-i18n="save">Save</button>
+<button class="ghost" id="cancelProfileBtn" data-i18n="cancel">Cancel</button>
+</div>
+<p class="auth-error" id="profileError"></p>
+</div>
+</div>
 
-        <aside class="dm-panel hidden" id="dmPanel">
-          <div class="dm-head">
-            <span id="dmHeadTitle">DM</span>
-            <button class="dm-close" id="dmCloseBtn">✕</button>
-          </div>
-          <div class="dm-messages" id="dmMessages">
-            <div class="empty-state" id="dmEmptyState">
-              <p data-i18n="noMessages">No messages yet</p>
-            </div>
-          </div>
-          <div class="dm-input-area">
-            <div class="reply-bar hidden" id="dmReplyBar">
-              <div class="reply-bar-text">
-                <span data-i18n="replyingTo">Replying to</span>
-                <b id="dmReplyBarName">—</b>
-                <span class="reply-bar-preview" id="dmReplyBarPreview"></span>
-              </div>
-              <button class="reply-bar-cancel" id="dmReplyBarCancel">✕</button>
-            </div>
-            <div class="file-preview hidden" id="dmFilePreview">
-              <img id="dmFilePreviewImg" alt="">
-              <video id="dmFilePreviewVideo" controls class="hidden"></video>
-              <div class="file-preview-info">
-                <span id="dmFilePreviewName"></span>
-                <button id="dmFilePreviewRemove">✕</button>
-              </div>
-            </div>
-            <div class="input-row">
-              <input type="text" id="dmInput" placeholder="Type a DM..." disabled>
-              <label class="file-label" id="dmFileLabel" title="Attach">
-                <img class="icon-img" id="dmPaperclipIcon" alt="">
-                <input type="file" id="dmFileInput" accept="image/*,video/*,image/gif" disabled>
-              </label>
-              <button class="send-btn" id="dmSendBtn" disabled>Send</button>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
-  </div>
+<div class="modal-backdrop hidden" id="createRoomModal">
+<div class="modal">
+<h2 data-i18n="createRoom">Create Room</h2>
+<label class="field"><span data-i18n="roomCode">Room code (unique id)</span><input type="text" id="createRoomCodeInput" placeholder="my-room" maxlength="32"></label>
+<label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="createRoomName" placeholder="My Lobby" maxlength="40"></label>
+<label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="createRoomMax" min="2" max="500" value="20"></label>
+<label class="field"><span data-i18n="passwordOptional">Password (optional)</span><input type="password" id="createRoomPassword" placeholder="Leave empty for no password"></label>
+<div class="modal-actions">
+<button id="createRoomBtn" data-i18n="create">Create</button>
+<button class="ghost" id="cancelCreateRoomBtn" data-i18n="cancel">Cancel</button>
+</div>
+<p class="auth-error" id="createRoomError"></p>
+</div>
+</div>
 
-  <div class="notif-dropdown hidden" id="notifDropdown">
-    <div class="notif-head">
-      <span data-i18n="notifications">Notifications</span>
-      <button class="ghost-mini" id="markAllReadBtn" data-i18n="markAllRead">Mark all read</button>
-    </div>
-    <div class="notif-list" id="notifList"><p class="notif-empty" data-i18n="noNotifications">No notifications</p></div>
-  </div>
+<div class="modal-backdrop hidden" id="passwordModal">
+<div class="modal">
+<h2 data-i18n="passwordRequired">Password Required</h2>
+<p class="modal-sub"><span data-i18n="room">Room</span> <b id="passwordRoomCode">—</b> <span data-i18n="isLocked">is locked.</span></p>
+<label class="field"><span data-i18n="password">Password</span><input type="password" id="joinRoomPassword" placeholder="Enter password"></label>
+<div class="modal-actions">
+<button id="submitPasswordBtn" data-i18n="join">Join</button>
+<button class="ghost" id="cancelPasswordBtn" data-i18n="cancel">Cancel</button>
+</div>
+<p class="auth-error" id="passwordError"></p>
+</div>
+</div>
 
-  <div class="modal-backdrop hidden" id="userModal">
-    <div class="modal">
-      <div class="modal-head">
-        <img class="modal-pfp" id="modalPfp" alt="">
-        <div>
-          <div class="modal-name" id="modalName">—</div>
-          <div class="modal-bio" id="modalBio">—</div>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button id="modalDmBtn" data-i18n="sendDm">Send DM</button>
-        <button id="modalBlockBtn" data-i18n="block">Block</button>
-        <button id="modalKickBtn" class="danger hidden" data-i18n="kick">Kick from room</button>
-        <button class="ghost" id="modalCloseBtn" data-i18n="close">Close</button>
-      </div>
-    </div>
-  </div>
+<div class="modal-backdrop hidden" id="kickedModal">
+<div class="modal">
+<h2 data-i18n="kickedUsers">Kicked Users</h2>
+<div class="kicked-list" id="kickedList"><p class="modal-sub" data-i18n="nobodyKicked">Nobody is kicked.</p></div>
+<div class="modal-actions"><button class="ghost" id="closeKickedBtn" data-i18n="close">Close</button></div>
+</div>
+</div>
 
-  <div class="modal-backdrop hidden" id="profileModal">
-    <div class="modal profile-modal">
-      <div class="profile-hero">
-        <div class="profile-avatar-wrap">
-          <img class="profile-avatar" id="myProfileAvatar" alt="">
-          <label class="profile-avatar-edit">
-            <img class="icon-img" id="editPfpIcon" alt="">
-            <input type="file" id="editPfp" accept="image/*">
-          </label>
-        </div>
-        <div class="profile-hero-name" id="profileHeroName">—</div>
-        <div class="profile-hero-email" id="profileHeroEmail">—</div>
-        <div class="profile-hero-meta" id="profileHeroMeta"></div>
-      </div>
-      <h2 data-i18n="editProfile">Edit Profile</h2>
-      <label class="field"><span data-i18n="username">Username</span><input type="text" id="editUsername" maxlength="24"></label>
-      <label class="field"><span data-i18n="bio">Bio</span><textarea id="editBio" rows="3" maxlength="200"></textarea></label>
-      <div class="modal-actions">
-        <button id="saveProfileBtn" data-i18n="save">Save</button>
-        <button class="ghost" id="cancelProfileBtn" data-i18n="cancel">Cancel</button>
-      </div>
-      <p class="auth-error" id="profileError"></p>
-    </div>
-  </div>
+<div class="modal-backdrop hidden" id="roomSettingsModal">
+<div class="modal">
+<h2 data-i18n="roomSettings">Room Settings</h2>
+<label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="settingsRoomName" maxlength="40"></label>
+<label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="settingsRoomMax" min="2" max="500"></label>
+<label class="field"><span data-i18n="changePasswordKeep">Change password (leave empty to keep)</span><input type="password" id="settingsRoomPassword" placeholder="New password"></label>
+<div class="modal-actions">
+<button id="saveRoomSettingsBtn" data-i18n="save">Save</button>
+<button class="ghost" id="cancelRoomSettingsBtn" data-i18n="cancel">Cancel</button>
+</div>
+<hr class="settings-divider">
+<div class="modal-actions"><button class="danger" id="deleteRoomBtn" data-i18n="deleteRoom">Delete Lobby</button></div>
+<p class="auth-error" id="roomSettingsError"></p>
+</div>
+</div>
 
-  <div class="modal-backdrop hidden" id="createRoomModal">
-    <div class="modal">
-      <h2 data-i18n="createRoom">Create Room</h2>
-      <label class="field"><span data-i18n="roomCode">Room code (unique id)</span><input type="text" id="createRoomCodeInput" placeholder="my-room" maxlength="32"></label>
-      <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="createRoomName" placeholder="My Lobby" maxlength="40"></label>
-      <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="createRoomMax" min="2" max="500" value="20"></label>
-      <label class="field"><span data-i18n="passwordOptional">Password (optional)</span><input type="password" id="createRoomPassword" placeholder="Leave empty for no password"></label>
-      <div class="modal-actions">
-        <button id="createRoomBtn" data-i18n="create">Create</button>
-        <button class="ghost" id="cancelCreateRoomBtn" data-i18n="cancel">Cancel</button>
-      </div>
-      <p class="auth-error" id="createRoomError"></p>
-    </div>
-  </div>
+<div class="modal-backdrop hidden" id="settingsModal">
+<div class="modal settings-wide">
+<h2 data-i18n="settings">Settings</h2>
+<div class="settings-tabs">
+<button class="settings-tab active" data-tab="account" data-i18n="tabAccount">Account</button>
+<button class="settings-tab" data-tab="appearance" data-i18n="tabAppearance">Appearance</button>
+<button class="settings-tab" data-tab="danger" data-i18n="tabDanger">Danger</button>
+</div>
+<div class="settings-pane" id="paneAccount">
+<h3 class="settings-sub" data-i18n="account">Account</h3>
+<label class="field"><span data-i18n="theme">Theme</span>
+<select id="themeSelect">
+<option value="dark" data-i18n="dark">Dark</option>
+<option value="light" data-i18n="light">Light</option>
+</select>
+</label>
+<label class="field"><span data-i18n="language">Language</span>
+<select id="languageSelect">
+<option value="en">English</option><option value="es">Español</option>
+<option value="fr">Français</option><option value="ru">Русский</option>
+</select>
+</label>
+<hr class="settings-divider">
+<h3 class="settings-sub" data-i18n="changePassword">Change Password</h3>
+<label class="field"><span data-i18n="currentPassword">Current password</span><input type="password" id="currentPassword"></label>
+<label class="field"><span data-i18n="newPassword">New password (6+ chars)</span><input type="password" id="newPassword"></label>
+<div class="modal-actions"><button id="changePasswordBtn" data-i18n="updatePassword">Update Password</button></div>
+<p class="auth-error" id="settingsError"></p>
+</div>
+<div class="settings-pane hidden" id="paneAppearance">
+<h3 class="settings-sub" data-i18n="presets">Presets</h3>
+<div class="preset-grid" id="presetGrid"></div>
+<hr class="settings-divider">
+<h3 class="settings-sub" data-i18n="colors">Colors</h3>
+<div class="color-grid" id="colorGrid"></div>
+<hr class="settings-divider">
+<h3 class="settings-sub" data-i18n="advanced">Advanced</h3>
+<p class="settings-hint" data-i18n="advancedHint">Full CSS override. Applies after all other styles. Only affects your browser.</p>
+<div class="modal-actions">
+<button id="openAdvancedCssBtn" data-i18n="editCustomCss">Edit Custom CSS</button>
+<button class="ghost" id="resetAppearanceBtn" data-i18n="resetAppearance">Reset Appearance</button>
+</div>
+</div>
+<div class="settings-pane hidden" id="paneDanger">
+<h3 class="settings-sub" data-i18n="danger">Danger Zone</h3>
+<p class="settings-hint" data-i18n="logoutHint">Logging out will disconnect you from any room.</p>
+<div class="modal-actions">
+<button class="danger" id="logoutBtn2" data-i18n="logout">Log Out</button>
+</div>
+</div>
+<div class="modal-actions">
+<button class="ghost" id="closeSettingsBtn" data-i18n="close">Close</button>
+</div>
+</div>
+</div>
 
-  <div class="modal-backdrop hidden" id="passwordModal">
-    <div class="modal">
-      <h2 data-i18n="passwordRequired">Password Required</h2>
-      <p class="modal-sub"><span data-i18n="room">Room</span> <b id="passwordRoomCode">—</b> <span data-i18n="isLocked">is locked.</span></p>
-      <label class="field"><span data-i18n="password">Password</span><input type="password" id="joinRoomPassword" placeholder="Enter password"></label>
-      <div class="modal-actions">
-        <button id="submitPasswordBtn" data-i18n="join">Join</button>
-        <button class="ghost" id="cancelPasswordBtn" data-i18n="cancel">Cancel</button>
-      </div>
-      <p class="auth-error" id="passwordError"></p>
-    </div>
-  </div>
+<div class="modal-backdrop hidden" id="advancedCssModal">
+<div class="modal css-wide">
+<h2 data-i18n="customCssTitle">Custom CSS</h2>
+<p class="settings-hint" data-i18n="customCssHint">Anything you write here is injected after all other styles. Applies only to your browser.</p>
+<textarea id="customCssInput" spellcheck="false" rows="18"></textarea>
+<div class="modal-actions">
+<button id="insertVarsBtn" data-i18n="insertVars">Insert All Variables</button>
+<button id="saveCustomCssBtn" data-i18n="save">Save</button>
+<button class="ghost" id="cancelCustomCssBtn" data-i18n="cancel">Cancel</button>
+<button class="ghost" id="clearCustomCssBtn" data-i18n="clear">Clear</button>
+</div>
+</div>
+</div>
 
-  <div class="modal-backdrop hidden" id="kickedModal">
-    <div class="modal">
-      <h2 data-i18n="kickedUsers">Kicked Users</h2>
-      <div class="kicked-list" id="kickedList"><p class="modal-sub" data-i18n="nobodyKicked">Nobody is kicked.</p></div>
-      <div class="modal-actions"><button class="ghost" id="closeKickedBtn" data-i18n="close">Close</button></div>
-    </div>
-  </div>
+<div class="toast" id="toast"></div>
 
-  <div class="modal-backdrop hidden" id="roomSettingsModal">
-    <div class="modal">
-      <h2 data-i18n="roomSettings">Room Settings</h2>
-      <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="settingsRoomName" maxlength="40"></label>
-      <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="settingsRoomMax" min="2" max="500"></label>
-      <label class="field"><span data-i18n="changePasswordKeep">Change password (leave empty to keep)</span><input type="password" id="settingsRoomPassword" placeholder="New password"></label>
-      <div class="modal-actions">
-        <button id="saveRoomSettingsBtn" data-i18n="save">Save</button>
-        <button class="ghost" id="cancelRoomSettingsBtn" data-i18n="cancel">Cancel</button>
-      </div>
-      <hr class="settings-divider">
-      <div class="modal-actions"><button class="danger" id="deleteRoomBtn" data-i18n="deleteRoom">Delete Lobby</button></div>
-      <p class="auth-error" id="roomSettingsError"></p>
-    </div>
-  </div>
-
-  <div class="modal-backdrop hidden" id="settingsModal">
-    <div class="modal settings-wide">
-      <h2 data-i18n="settings">Settings</h2>
-
-      <div class="settings-tabs">
-        <button class="settings-tab active" data-tab="account" data-i18n="tabAccount">Account</button>
-        <button class="settings-tab" data-tab="appearance" data-i18n="tabAppearance">Appearance</button>
-        <button class="settings-tab" data-tab="danger" data-i18n="tabDanger">Danger</button>
-      </div>
-
-      <div class="settings-pane" id="paneAccount">
-        <h3 class="settings-sub" data-i18n="account">Account</h3>
-        <label class="field"><span data-i18n="theme">Theme</span>
-          <select id="themeSelect">
-            <option value="dark" data-i18n="dark">Dark</option>
-            <option value="light" data-i18n="light">Light</option>
-          </select>
-        </label>
-        <label class="field"><span data-i18n="language">Language</span>
-          <select id="languageSelect">
-            <option value="en">English</option><option value="es">Español</option>
-            <option value="fr">Français</option><option value="ru">Русский</option>
-          </select>
-        </label>
-
-        <hr class="settings-divider">
-
-        <h3 class="settings-sub" data-i18n="changePassword">Change Password</h3>
-        <label class="field"><span data-i18n="currentPassword">Current password</span><input type="password" id="currentPassword"></label>
-        <label class="field"><span data-i18n="newPassword">New password (6+ chars)</span><input type="password" id="newPassword"></label>
-        <div class="modal-actions"><button id="changePasswordBtn" data-i18n="updatePassword">Update Password</button></div>
-
-        <p class="auth-error" id="settingsError"></p>
-      </div>
-
-      <div class="settings-pane hidden" id="paneAppearance">
-        <h3 class="settings-sub" data-i18n="presets">Presets</h3>
-        <div class="preset-grid" id="presetGrid"></div>
-
-        <hr class="settings-divider">
-
-        <h3 class="settings-sub" data-i18n="colors">Colors</h3>
-        <div class="color-grid" id="colorGrid"></div>
-
-        <hr class="settings-divider">
-
-        <h3 class="settings-sub" data-i18n="advanced">Advanced</h3>
-        <p class="settings-hint" data-i18n="advancedHint">Full CSS override. Applies after all other styles. Only affects your browser.</p>
-        <div class="modal-actions">
-          <button id="openAdvancedCssBtn" data-i18n="editCustomCss">Edit Custom CSS</button>
-          <button class="ghost" id="resetAppearanceBtn" data-i18n="resetAppearance">Reset Appearance</button>
-        </div>
-      </div>
-
-      <div class="settings-pane hidden" id="paneDanger">
-        <h3 class="settings-sub" data-i18n="danger">Danger Zone</h3>
-        <p class="settings-hint" data-i18n="logoutHint">Logging out will disconnect you from any room.</p>
-        <div class="modal-actions">
-          <button class="danger" id="logoutBtn2" data-i18n="logout">Log Out</button>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="ghost" id="closeSettingsBtn" data-i18n="close">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop hidden" id="advancedCssModal">
-    <div class="modal css-wide">
-      <h2 data-i18n="customCssTitle">Custom CSS</h2>
-      <p class="settings-hint" data-i18n="customCssHint">Anything you write here is injected after all other styles. Applies only to your browser. Try ".msg-line { font-size: 18px; }".</p>
-      <textarea id="customCssInput" spellcheck="false" rows="18"></textarea>
-      <div class="modal-actions">
-        <button id="saveCustomCssBtn" data-i18n="save">Save</button>
-        <button class="ghost" id="cancelCustomCssBtn" data-i18n="cancel">Cancel</button>
-        <button class="ghost" id="clearCustomCssBtn" data-i18n="clear">Clear</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-  <script type="module" src="app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
