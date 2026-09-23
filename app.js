@@ -30,16 +30,14 @@ const MSG_TTL_MS = 15 * 60 * 1000;
 const MSG_MAX = 100;
 const AUTO_CLEAN_MS = 60 * 1000;
 const BOT_UID = "system";
+const PRESENCE_STALE_MS = 2 * 60 * 1000;
+const HEARTBEAT_MS = 30 * 1000;
 
 const $ = id => document.getElementById(id);
 
-// SVG icons using currentColor so they inherit --icon-color via CSS mask
-function iconMask(path) {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='#000' d='${path}'/></svg>`;
-  return svg;
-}
-function setMask(el, path) {
-  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(iconMask(path))}")`;
+function applyIconMask(el, key) {
+  if (!el || !ICON_PATHS[key]) return;
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='${ICON_PATHS[key]}'/></svg>`)}")`;
   el.style.webkitMaskImage = url;
   el.style.maskImage = url;
 }
@@ -78,7 +76,8 @@ const state = {
   reply: null, dmReply: null,
   lastGroupEl: null, lastGroupUid: null, lastGroupTime: 0,
   dmLastGroupEl: null, dmLastGroupUid: null, dmLastGroupTime: 0,
-  sweepId: null, cleanId: null, usernameIndex: null
+  sweepId: null, cleanId: null, heartbeatId: null,
+  usernameIndex: null
 };
 
 let currentLang = localStorage.getItem("lang") || "en";
@@ -91,7 +90,6 @@ const applyTranslations = () => {
 };
 const applyTheme = () => document.body.setAttribute("data-theme", currentTheme);
 
-// ---------- Appearance ----------
 const COLOR_VARS = [
   { key: "bg",           label: "Background" },
   { key: "bg-app",       label: "App" },
@@ -181,14 +179,6 @@ async function getPresenceCount(code) {
     presenceCountCache.set(code, { n, ts: Date.now() });
     return n;
   } catch { return 0; }
-}
-
-// Icon element mask setup
-function applyIconMask(el, key) {
-  if (!el || !ICON_PATHS[key]) return;
-  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='${ICON_PATHS[key]}'/></svg>`)}")`;
-  el.style.webkitMaskImage = url;
-  el.style.maskImage = url;
 }
 
 const el = {
@@ -368,7 +358,6 @@ function setDmReply(target) {
 const clearReply = () => setReply(null);
 const clearDmReply = () => setDmReply(null);
 
-// ---------- Appearance UI ----------
 function buildPresetGrid() {
   el.presetGrid.innerHTML = "";
   for (const [name, colors] of Object.entries(PRESETS)) {
@@ -486,6 +475,7 @@ onAuthStateChanged(auth, async (user) => {
     if (state.notifOff) { state.notifOff(); state.notifOff = null; }
     if (state.sweepId) { clearInterval(state.sweepId); state.sweepId = null; }
     if (state.cleanId) { clearInterval(state.cleanId); state.cleanId = null; }
+    if (state.heartbeatId) { clearInterval(state.heartbeatId); state.heartbeatId = null; }
     if (state.lobbyOff) { state.lobbyOff(); state.lobbyOff = null; }
     el.authScreen.classList.remove("hidden");
     el.appRoot.classList.add("hidden");
@@ -599,6 +589,23 @@ async function cleanRoomMessages() {
       try { await remove(ref(db, `chats/${state.roomCode}/messages/${id}`)); } catch {}
     }
   } catch (e) { console.warn("Clean error:", e); }
+  await cleanStalePresence();
+}
+
+async function cleanStalePresence() {
+  if (!state.me || !state.roomCode) return;
+  try {
+    const snap = await get(ref(db, `chats/${state.roomCode}/presence`));
+    const data = snap.val() || {};
+    const now = Date.now();
+    for (const [uid, entry] of Object.entries(data)) {
+      if (!entry?.joinedAt) continue;
+      if (uid === state.me.uid) continue;
+      if (now - entry.joinedAt > PRESENCE_STALE_MS) {
+        try { await remove(ref(db, `chats/${state.roomCode}/presence/${uid}`)); } catch {}
+      }
+    }
+  } catch (e) { console.warn("Presence clean error:", e); }
 }
 
 // ---------- Lobby ----------
@@ -765,7 +772,22 @@ async function enterRoom(code, roomMeta) {
   try { update(ref(db, `rooms/${code}`), { lastActivity: Date.now() }); } catch {}
   el.capacityLabel.textContent = "/ " + (roomMeta.maxUsers || 50);
 
+  // Pre-load existing messages before attaching the live listener
+  try {
+    const initialSnap = await get(state.queryRef);
+    const initialData = initialSnap.val() || {};
+    const sorted = Object.entries(initialData).sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+    for (const [id, msg] of sorted) {
+      if (state.blocked.has(msg.uid)) continue;
+      renderMessage(el.chatContainer, id, msg, msg.uid === state.me.uid, false);
+    }
+    if (sorted.length) hideEmpty();
+  } catch (e) { console.warn("Preload error:", e); }
+
+  const seenIds = new Set();
   const handler = (snapshot) => {
+    if (seenIds.has(snapshot.key)) return;
+    seenIds.add(snapshot.key);
     const msg = snapshot.val();
     if (!msg || state.blocked.has(msg.uid)) return;
     renderMessage(el.chatContainer, snapshot.key, msg, msg.uid === state.me.uid, false);
@@ -774,12 +796,19 @@ async function enterRoom(code, roomMeta) {
   onChildAdded(state.queryRef, handler);
   state.groupOff = () => off(state.queryRef, "child_added", handler);
 
+  // Presence + heartbeat
   state.presenceRef = ref(db, `chats/${code}/presence/${state.me.uid}`);
   await set(state.presenceRef, { username: state.me.username, joinedAt: serverTimestamp() });
   await set(ref(db, `chats/${code}/seen/${state.me.uid}`), {
     username: state.me.username, lastSeen: serverTimestamp()
   });
   onDisconnect(state.presenceRef).remove();
+
+  if (state.heartbeatId) clearInterval(state.heartbeatId);
+  state.heartbeatId = setInterval(() => {
+    if (state.roomCode !== code || !state.presenceRef) return;
+    update(state.presenceRef, { joinedAt: serverTimestamp() }).catch(() => {});
+  }, HEARTBEAT_MS);
 
   state.presenceOff = onValue(ref(db, `chats/${code}/presence`), (snap) => {
     state.presenceData = snap.val() || {};
@@ -828,6 +857,7 @@ async function detachFromRoom() {
   if (state.seenOff) { state.seenOff(); state.seenOff = null; }
   if (state.kickedOff) { state.kickedOff(); state.kickedOff = null; }
   if (state.cleanId) { clearInterval(state.cleanId); state.cleanId = null; }
+  if (state.heartbeatId) { clearInterval(state.heartbeatId); state.heartbeatId = null; }
   if (state.presenceRef) { try { await remove(state.presenceRef); } catch {} state.presenceRef = null; }
   state.roomRef = null; state.queryRef = null; state.roomCode = null; state.roomMeta = null;
   state.presenceData = {}; state.seenData = {};
@@ -917,6 +947,7 @@ el.markAllReadBtn.addEventListener("click", async () => {
   if (Object.keys(updates).length) {
     try {
       await update(ref(db, `notifications/${state.me.uid}`), updates);
+      showToast("Marked " + Object.keys(updates).length + " as read");
     } catch (e) { showToast("Could not mark read: " + e.message); }
   }
 });
@@ -1113,14 +1144,31 @@ function buildLineContent(lineEl, plainText) {
 
 // ---------- Sidebar ----------
 async function renderUserList() {
-  const onlineUids = Object.keys(state.presenceData).sort((a, b) => {
+  const onlineMap = new Map();
+  for (const [uid, p] of Object.entries(state.presenceData || {})) {
+    if (!uid || uid === "undefined") continue;
+    onlineMap.set(uid, { uid, username: p?.username || "" });
+  }
+
+  const offlineMap = new Map();
+  for (const [uid, s] of Object.entries(state.seenData || {})) {
+    if (!uid || uid === "undefined") continue;
+    if (uid === state.me.uid) continue;
+    if (onlineMap.has(uid)) continue;
+    offlineMap.set(uid, { uid, username: s?.username || "" });
+  }
+
+  const onlineUids = [...onlineMap.keys()].sort((a, b) => {
     if (a === state.me.uid) return -1;
     if (b === state.me.uid) return 1;
-    return (state.presenceData[a]?.username || "").toLowerCase().localeCompare((state.presenceData[b]?.username || "").toLowerCase());
+    return (onlineMap.get(a).username || "").toLowerCase()
+      .localeCompare((onlineMap.get(b).username || "").toLowerCase());
   });
-  const offlineUids = Object.keys(state.seenData)
-    .filter(uid => !state.presenceData[uid] && uid !== state.me.uid)
-    .sort((a, b) => (state.seenData[a]?.username || "").toLowerCase().localeCompare((state.seenData[b]?.username || "").toLowerCase()));
+
+  const offlineUids = [...offlineMap.keys()].sort((a, b) =>
+    (offlineMap.get(a).username || "").toLowerCase()
+      .localeCompare((offlineMap.get(b).username || "").toLowerCase())
+  );
 
   el.onlineCount.textContent = onlineUids.length;
   el.offlineCount.textContent = offlineUids.length;
@@ -1301,7 +1349,6 @@ async function openDm(otherUid) {
   state.dmQueryRef = query(ref(db, dmPath(state.me.uid, otherUid)), limitToLast(100));
   resetDmUI();
   el.dmPanel.classList.remove("hidden");
-
   el.dmInput.disabled = false;
   el.dmFileInput.disabled = false;
   el.dmSendBtn.disabled = false;
@@ -1309,7 +1356,21 @@ async function openDm(otherUid) {
   const other = await fetchUser(otherUid);
   el.dmHeadTitle.textContent = "DM with " + other.username;
 
+  // Pre-load existing DM messages, then listen for new
+  try {
+    const snap = await get(state.dmQueryRef);
+    const data = snap.val() || {};
+    const sorted = Object.entries(data).sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+    for (const [id, msg] of sorted) {
+      renderMessage(el.dmMessages, id, msg, msg.uid === state.me.uid, true);
+    }
+    if (sorted.length) hideDmEmpty();
+  } catch (e) { console.warn("DM preload error:", e); }
+
+  const seenIds = new Set();
   const handler = (snapshot) => {
+    if (seenIds.has(snapshot.key)) return;
+    seenIds.add(snapshot.key);
     const msg = snapshot.val();
     if (!msg) return;
     renderMessage(el.dmMessages, snapshot.key, msg, msg.uid === state.me.uid, true);
@@ -1339,7 +1400,10 @@ el.dmCloseBtn.addEventListener("click", () => {
 async function reattachGroupListener() {
   if (state.groupOff) { state.groupOff(); state.groupOff = null; }
   resetChatUI();
+  const seenIds = new Set();
   const handler = (snapshot) => {
+    if (seenIds.has(snapshot.key)) return;
+    seenIds.add(snapshot.key);
     const msg = snapshot.val();
     if (!msg || state.blocked.has(msg.uid)) return;
     renderMessage(el.chatContainer, snapshot.key, msg, msg.uid === state.me.uid, false);
