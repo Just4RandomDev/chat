@@ -325,8 +325,28 @@
 <div class="modal-backdrop hidden" id="advancedCssModal">
 <div class="modal css-wide">
 <h2 data-i18n="customCssTitle">Custom CSS</h2>
+
+<div class="settings-tabs">
+<button class="settings-tab active" data-custom-tab="css">CSS</button>
+<button class="settings-tab" data-custom-tab="html">HTML</button>
+<button class="settings-tab" data-custom-tab="js">JS</button>
+</div>
+
+<div class="custom-pane" id="customPaneCss">
 <p class="settings-hint" data-i18n="customCssHint">Anything you write here is injected after all other styles. Applies only to your browser.</p>
 <textarea id="customCssInput" spellcheck="false" rows="18"></textarea>
+</div>
+
+<div class="custom-pane hidden" id="customPaneHtml">
+<p class="settings-hint">Injected into the bottom of the page. Use for &lt;video&gt;, &lt;canvas&gt;, extra &lt;div&gt;s.</p>
+<textarea id="customHtmlInput" spellcheck="false" rows="18"></textarea>
+</div>
+
+<div class="custom-pane hidden" id="customPaneJs">
+<p class="settings-hint">Runs on every load. Errors are caught and won't break the app. Runs after the page is ready.</p>
+<textarea id="customJsInput" spellcheck="false" rows="18"></textarea>
+</div>
+
 <div class="modal-actions">
 <button id="insertVarsBtn" data-i18n="insertVars">Insert All Variables</button>
 <button id="saveCustomCssBtn" data-i18n="save">Save</button>
@@ -335,6 +355,8 @@
 </div>
 </div>
 </div>
+
+<div id="customHtmlMount" style="position:fixed;inset:0;pointer-events:none;z-index:-1;overflow:hidden;"></div>
 
 <div class="toast" id="toast"></div>
 
