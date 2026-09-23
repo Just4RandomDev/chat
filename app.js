@@ -5,7 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getDatabase, ref, push, set, get, update, remove, query, limitToLast,
-  onChildAdded, onChildRemoved, onValue, off, serverTimestamp, onDisconnect
+  onChildAdded, onValue, off, serverTimestamp, onDisconnect
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -32,31 +32,43 @@ const AUTO_CLEAN_MS = 60 * 1000;
 const BOT_UID = "system";
 
 const $ = id => document.getElementById(id);
-const svgIcon = (path, color = "%23d94a4a") =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='${color.replace("%23", "#")}'>${path}</svg>`)}`;
 
-const ICONS = {
-  bell:      svgIcon(`<path d='M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z'/>`),
-  gear:      svgIcon(`<path d='M19.14 12.94a7.5 7.5 0 0 0 .06-.94 7.5 7.5 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.24-1.12.55-1.62.94L5.24 4.94a.5.5 0 0 0-.6.22L2.72 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0-.06.94c0 .32.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.42.34.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.24 1.12-.55 1.62-.94l2.39.96c.18.12.46.02.6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z'/>`),
-  paperclip: svgIcon(`<path d='M16.5 6.5v11a4.5 4.5 0 0 1-9 0V6a3 3 0 0 1 6 0v11.5a1.5 1.5 0 0 1-3 0V8h-2v9.5a3.5 3.5 0 0 0 7 0V6a5 5 0 0 0-10 0v11.5a6.5 6.5 0 0 0 13 0V6.5h-2z'/>`),
-  lock:      svgIcon(`<path d='M17 9V7a5 5 0 0 0-10 0v2a3 3 0 0 0-2 2.83V19a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-7.17A3 3 0 0 0 17 9zM9 7a3 3 0 0 1 6 0v2H9V7z'/>`),
-  globe:     svgIcon(`<path d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.93 9h-3.44a15.6 15.6 0 0 0-1.2-5.44A8.02 8.02 0 0 1 19.93 11zM12 4.06c.83 1.2 1.7 3.35 1.95 6.94h-3.9c.25-3.59 1.12-5.74 1.95-6.94zM4.07 13h3.44c.16 1.9.6 3.83 1.2 5.44A8.02 8.02 0 0 1 4.07 13zm3.44-2H4.07a8.02 8.02 0 0 1 4.64-5.44A15.6 15.6 0 0 0 7.51 11zM12 19.94c-.83-1.2-1.7-3.35-1.95-6.94h3.9c-.25 3.59-1.12 5.74-1.95 6.94zm2.49-1.5a15.6 15.6 0 0 0 1.2-5.44h3.44a8.02 8.02 0 0 1-4.64 5.44z'/>`),
-  crown:     svgIcon(`<path d='M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z'/>`),
-  chat:      svgIcon(`<path d='M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z'/>`),
-  pencil:    svgIcon(`<path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/>`, "%23ffffff")
+// SVG icons using currentColor so they inherit --icon-color via CSS mask
+function iconMask(path) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='#000' d='${path}'/></svg>`;
+  return svg;
+}
+function setMask(el, path) {
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(iconMask(path))}")`;
+  el.style.webkitMaskImage = url;
+  el.style.maskImage = url;
+}
+
+const ICON_PATHS = {
+  bell:      `M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z`,
+  gear:      `M19.14 12.94a7.5 7.5 0 0 0 .06-.94 7.5 7.5 0 0 0-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.24-1.12.55-1.62.94L5.24 4.94a.5.5 0 0 0-.6.22L2.72 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0-.06.94c0 .32.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.42.34.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.24 1.12-.55 1.62-.94l2.39.96c.18.12.46.02.6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z`,
+  paperclip: `M16.5 6.5v11a4.5 4.5 0 0 1-9 0V6a3 3 0 0 1 6 0v11.5a1.5 1.5 0 0 1-3 0V8h-2v9.5a3.5 3.5 0 0 0 7 0V6a5 5 0 0 0-10 0v11.5a6.5 6.5 0 0 0 13 0V6.5h-2z`,
+  lock:      `M17 9V7a5 5 0 0 0-10 0v2a3 3 0 0 0-2 2.83V19a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-7.17A3 3 0 0 0 17 9zM9 7a3 3 0 0 1 6 0v2H9V7z`,
+  globe:     `M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.93 9h-3.44a15.6 15.6 0 0 0-1.2-5.44A8.02 8.02 0 0 1 19.93 11zM12 4.06c.83 1.2 1.7 3.35 1.95 6.94h-3.9c.25-3.59 1.12-5.74 1.95-6.94zM4.07 13h3.44c.16 1.9.6 3.83 1.2 5.44A8.02 8.02 0 0 1 4.07 13zm3.44-2H4.07a8.02 8.02 0 0 1 4.64-5.44A15.6 15.6 0 0 0 7.51 11zM12 19.94c-.83-1.2-1.7-3.35-1.95-6.94h3.9c-.25 3.59-1.12 5.74-1.95 6.94zm2.49-1.5a15.6 15.6 0 0 0 1.2-5.44h3.44a8.02 8.02 0 0 1-4.64 5.44z`,
+  crown:     `M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z`,
+  chat:      `M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z`,
+  pencil:    `M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z`,
+  send:      `M2.01 21L23 12 2.01 3 2 10l15 2-15 2z`,
+  reply:     `M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z`,
+  trash:     `M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z`
 };
 
 const translations = {
-  en: { tabLogin:"Log In",tabSignup:"Sign Up",loginBtn:"Log In",signupBtn:"Create Account",email:"Email",password:"Password",password6:"Password (6+ chars)",username:"Username",backToLobby:"← Lobby",rooms:"Rooms",publicRoom:"Public Lobby",createRoom:"+ Create Room",online:"Online",offline:"Offline",admin:"Admin",manageKicked:"Manage Kicked",roomSettings:"Room Settings",backToRoom:"← Back to room",noMessages:"No messages yet",typeMessage:"Type a message...",media:"Media",send:"Send",notifications:"Notifications",markAllRead:"Mark all read",noNotifications:"No notifications",sendDm:"Send DM",block:"Block",kick:"Kick from room",close:"Close",editProfile:"Edit Profile",bio:"Bio",save:"Save",cancel:"Cancel",clear:"Clear",roomCode:"Room code (unique id)",lobbyName:"Lobby Name",maxUsers:"Max users (2–500)",passwordOptional:"Password (optional)",create:"Create",passwordRequired:"Password Required",room:"Room",isLocked:"is locked.",join:"Join",kickedUsers:"Kicked Users",nobodyKicked:"Nobody is kicked.",changePasswordKeep:"Change password (leave empty to keep)",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",language:"Language",changePassword:"Change Password",currentPassword:"Current password",newPassword:"New password (6+ chars)",updatePassword:"Update Password",logout:"Log Out",kickedToast:"You've been kicked from this room",notifMention:"You were mentioned in",notifDm:"New message from",notifReply:"replied to you in",replyingTo:"Replying to",deleteRoom:"Delete Lobby",deleteRoomConfirm:"Delete this lobby permanently? This removes all messages.",roomDeleted:"Lobby deleted",tabAccount:"Account",tabAppearance:"Appearance",tabDanger:"Danger",account:"Account",presets:"Presets",colors:"Colors",advanced:"Advanced",advancedHint:"Full CSS override. Applies after all other styles. Only affects your browser.",editCustomCss:"Edit Custom CSS",resetAppearance:"Reset Appearance",danger:"Danger Zone",logoutHint:"Logging out will disconnect you from any room.",customCssTitle:"Custom CSS",customCssHint:"Anything you write here is injected after all other styles. Applies only to your browser.",appearanceReset:"Appearance reset to default" },
-  es: { tabLogin:"Iniciar sesión",tabSignup:"Registrarse",loginBtn:"Iniciar sesión",signupBtn:"Crear cuenta",email:"Correo",password:"Contraseña",password6:"Contraseña (6+ caracteres)",username:"Usuario",backToLobby:"← Vestíbulo",rooms:"Salas",publicRoom:"Sala Pública",createRoom:"+ Crear Sala",online:"En línea",offline:"Desconectados",admin:"Admin",manageKicked:"Gestionar Expulsados",roomSettings:"Ajustes de Sala",backToRoom:"← Volver a la sala",noMessages:"Sin mensajes todavía",typeMessage:"Escribe un mensaje...",media:"Multimedia",send:"Enviar",notifications:"Notificaciones",markAllRead:"Marcar todo leído",noNotifications:"Sin notificaciones",sendDm:"Enviar MD",block:"Bloquear",kick:"Expulsar de la sala",close:"Cerrar",editProfile:"Editar Perfil",bio:"Biografía",save:"Guardar",cancel:"Cancelar",clear:"Limpiar",roomCode:"Código de sala (id único)",lobbyName:"Nombre del Lobby",maxUsers:"Usuarios máx (2–500)",passwordOptional:"Contraseña (opcional)",create:"Crear",passwordRequired:"Contraseña Requerida",room:"Sala",isLocked:"está bloqueada.",join:"Entrar",kickedUsers:"Usuarios Expulsados",nobodyKicked:"Nadie está expulsado.",changePasswordKeep:"Cambiar contraseña (vacío para mantener)",settings:"Ajustes",theme:"Tema",dark:"Oscuro",light:"Claro",language:"Idioma",changePassword:"Cambiar Contraseña",currentPassword:"Contraseña actual",newPassword:"Nueva contraseña (6+ caracteres)",updatePassword:"Actualizar",logout:"Cerrar Sesión",kickedToast:"Has sido expulsado de esta sala",notifMention:"Te mencionaron en",notifDm:"Nuevo mensaje de",notifReply:"te respondió en",replyingTo:"Respondiendo a",deleteRoom:"Eliminar Lobby",deleteRoomConfirm:"¿Eliminar este lobby permanentemente? Se borrarán todos los mensajes.",roomDeleted:"Lobby eliminado",tabAccount:"Cuenta",tabAppearance:"Apariencia",tabDanger:"Peligro",account:"Cuenta",presets:"Preajustes",colors:"Colores",advanced:"Avanzado",advancedHint:"Sobrescritura completa de CSS. Se aplica después del resto. Solo afecta a tu navegador.",editCustomCss:"Editar CSS",resetAppearance:"Restablecer Apariencia",danger:"Zona de Peligro",logoutHint:"Cerrar sesión te desconectará de cualquier sala.",customCssTitle:"CSS Personalizado",customCssHint:"Todo lo que escribas se inyecta después del resto de estilos. Solo se aplica en tu navegador.",appearanceReset:"Apariencia restablecida" },
-  fr: { tabLogin:"Connexion",tabSignup:"Inscription",loginBtn:"Connexion",signupBtn:"Créer un compte",email:"Email",password:"Mot de passe",password6:"Mot de passe (6+ caractères)",username:"Pseudo",backToLobby:"← Salon",rooms:"Salons",publicRoom:"Salon Public",createRoom:"+ Créer un Salon",online:"En ligne",offline:"Hors ligne",admin:"Admin",manageKicked:"Gérer Exclus",roomSettings:"Paramètres du Salon",backToRoom:"← Retour au salon",noMessages:"Aucun message",typeMessage:"Écrire un message...",media:"Média",send:"Envoyer",notifications:"Notifications",markAllRead:"Tout marquer lu",noNotifications:"Aucune notification",sendDm:"Envoyer un MP",block:"Bloquer",kick:"Exclure du salon",close:"Fermer",editProfile:"Modifier le Profil",bio:"Bio",save:"Enregistrer",cancel:"Annuler",clear:"Effacer",roomCode:"Code du salon (id unique)",lobbyName:"Nom du Salon",maxUsers:"Utilisateurs max (2–500)",passwordOptional:"Mot de passe (optionnel)",create:"Créer",passwordRequired:"Mot de Passe Requis",room:"Salon",isLocked:"est verrouillé.",join:"Rejoindre",kickedUsers:"Utilisateurs Exclus",nobodyKicked:"Personne n'est exclu.",changePasswordKeep:"Changer le mot de passe (vide pour garder)",settings:"Paramètres",theme:"Thème",dark:"Sombre",light:"Clair",language:"Langue",changePassword:"Changer le Mot de Passe",currentPassword:"Mot de passe actuel",newPassword:"Nouveau mot de passe (6+ caractères)",updatePassword:"Mettre à jour",logout:"Déconnexion",kickedToast:"Vous avez été exclu de ce salon",notifMention:"Vous avez été mentionné dans",notifDm:"Nouveau message de",notifReply:"vous a répondu dans",replyingTo:"Répondre à",deleteRoom:"Supprimer le Salon",deleteRoomConfirm:"Supprimer ce salon définitivement ? Tous les messages seront effacés.",roomDeleted:"Salon supprimé",tabAccount:"Compte",tabAppearance:"Apparence",tabDanger:"Danger",account:"Compte",presets:"Préréglages",colors:"Couleurs",advanced:"Avancé",advancedHint:"Remplacement CSS complet. S'applique après tous les autres styles. N'affecte que votre navigateur.",editCustomCss:"Modifier CSS",resetAppearance:"Réinitialiser l'Apparence",danger:"Zone Dangereuse",logoutHint:"La déconnexion vous déconnectera de tout salon.",customCssTitle:"CSS Personnalisé",customCssHint:"Tout ce que vous écrivez ici est injecté après tous les autres styles. S'applique uniquement à votre navigateur.",appearanceReset:"Apparence réinitialisée" },
-  ru: { tabLogin:"Войти",tabSignup:"Регистрация",loginBtn:"Войти",signupBtn:"Создать аккаунт",email:"Email",password:"Пароль",password6:"Пароль (6+ символов)",username:"Имя",backToLobby:"← Лобби",rooms:"Комнаты",publicRoom:"Публичная",createRoom:"+ Создать",online:"Онлайн",offline:"Офлайн",admin:"Админ",manageKicked:"Управление Киками",roomSettings:"Настройки Комнаты",backToRoom:"← Назад в комнату",noMessages:"Сообщений нет",typeMessage:"Введите сообщение...",media:"Медиа",send:"Отправить",notifications:"Уведомления",markAllRead:"Прочитать все",noNotifications:"Нет уведомлений",sendDm:"Написать ЛС",block:"Блок",kick:"Кикнуть из комнаты",close:"Закрыть",editProfile:"Профиль",bio:"О себе",save:"Сохранить",cancel:"Отмена",clear:"Очистить",roomCode:"Код комнаты (уникальный)",lobbyName:"Название Лобби",maxUsers:"Макс. людей (2–500)",passwordOptional:"Пароль (необязательно)",create:"Создать",passwordRequired:"Нужен Пароль",room:"Комната",isLocked:"заблокирована.",join:"Войти",kickedUsers:"Кикнутые",nobodyKicked:"Никто не кикнут.",changePasswordKeep:"Сменить пароль (пусто = оставить)",settings:"Настройки",theme:"Тема",dark:"Тёмная",light:"Светлая",language:"Язык",changePassword:"Сменить Пароль",currentPassword:"Текущий пароль",newPassword:"Новый пароль (6+ символов)",updatePassword:"Обновить",logout:"Выйти",kickedToast:"Вас кикнули из этой комнаты",notifMention:"Вас упомянули в",notifDm:"Новое сообщение от",notifReply:"ответил вам в",replyingTo:"Ответ",deleteRoom:"Удалить Лобби",deleteRoomConfirm:"Удалить это лобби навсегда? Все сообщения будут стёрты.",roomDeleted:"Лобби удалено",tabAccount:"Аккаунт",tabAppearance:"Внешний вид",tabDanger:"Опасно",account:"Аккаунт",presets:"Пресеты",colors:"Цвета",advanced:"Дополнительно",advancedHint:"Полная замена CSS. Применяется после всех остальных стилей. Влияет только на ваш браузер.",editCustomCss:"Изменить CSS",resetAppearance:"Сбросить оформление",danger:"Опасная Зона",logoutHint:"Выход отключит вас от комнаты.",customCssTitle:"Свой CSS",customCssHint:"Всё, что вы напишете, добавляется после остальных стилей. Применяется только к вашему браузеру.",appearanceReset:"Оформление сброшено" }
+  en: { tabLogin:"Log In",tabSignup:"Sign Up",loginBtn:"Log In",signupBtn:"Create Account",email:"Email",password:"Password",password6:"Password (6+ chars)",username:"Username",backToLobby:"← Lobby",rooms:"Rooms",publicRoom:"Public Lobby",createRoom:"+ Create Room",online:"Online",offline:"Offline",admin:"Admin",manageKicked:"Manage Kicked",roomSettings:"Room Settings",backToRoom:"← Back to room",noMessages:"No messages yet",typeMessage:"Type a message...",media:"Media",send:"Send",notifications:"Notifications",markAllRead:"Mark all read",noNotifications:"No notifications",sendDm:"Send DM",block:"Block",kick:"Kick from room",close:"Close",editProfile:"Edit Profile",bio:"Bio",save:"Save",cancel:"Cancel",clear:"Clear",roomCode:"Room code (unique id)",lobbyName:"Lobby Name",maxUsers:"Max users (2–500)",passwordOptional:"Password (optional)",create:"Create",passwordRequired:"Password Required",room:"Room",isLocked:"is locked.",join:"Join",kickedUsers:"Kicked Users",nobodyKicked:"Nobody is kicked.",changePasswordKeep:"Change password (leave empty to keep)",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",language:"Language",changePassword:"Change Password",currentPassword:"Current password",newPassword:"New password (6+ chars)",updatePassword:"Update Password",logout:"Log Out",kickedToast:"You've been kicked from this room",notifMention:"You were mentioned in",notifDm:"New message from",notifReply:"replied to you in",replyingTo:"Replying to",deleteRoom:"Delete Lobby",deleteRoomConfirm:"Delete this lobby permanently? This removes all messages.",roomDeleted:"Lobby deleted",tabAccount:"Account",tabAppearance:"Appearance",tabDanger:"Danger",account:"Account",presets:"Presets",colors:"Colors",advanced:"Advanced",advancedHint:"Full CSS override. Applies after all other styles. Only affects your browser.",editCustomCss:"Edit Custom CSS",resetAppearance:"Reset Appearance",danger:"Danger Zone",logoutHint:"Logging out will disconnect you from any room.",customCssTitle:"Custom CSS",customCssHint:"Anything you write here is injected after all other styles. Applies only to your browser.",appearanceReset:"Appearance reset to default",insertVars:"Insert All Variables" },
+  es: { tabLogin:"Iniciar sesión",tabSignup:"Registrarse",loginBtn:"Iniciar sesión",signupBtn:"Crear cuenta",email:"Correo",password:"Contraseña",password6:"Contraseña (6+ caracteres)",username:"Usuario",backToLobby:"← Vestíbulo",rooms:"Salas",publicRoom:"Sala Pública",createRoom:"+ Crear Sala",online:"En línea",offline:"Desconectados",admin:"Admin",manageKicked:"Gestionar Expulsados",roomSettings:"Ajustes de Sala",backToRoom:"← Volver a la sala",noMessages:"Sin mensajes todavía",typeMessage:"Escribe un mensaje...",media:"Multimedia",send:"Enviar",notifications:"Notificaciones",markAllRead:"Marcar todo leído",noNotifications:"Sin notificaciones",sendDm:"Enviar MD",block:"Bloquear",kick:"Expulsar de la sala",close:"Cerrar",editProfile:"Editar Perfil",bio:"Biografía",save:"Guardar",cancel:"Cancelar",clear:"Limpiar",roomCode:"Código de sala (id único)",lobbyName:"Nombre del Lobby",maxUsers:"Usuarios máx (2–500)",passwordOptional:"Contraseña (opcional)",create:"Crear",passwordRequired:"Contraseña Requerida",room:"Sala",isLocked:"está bloqueada.",join:"Entrar",kickedUsers:"Usuarios Expulsados",nobodyKicked:"Nadie está expulsado.",changePasswordKeep:"Cambiar contraseña (vacío para mantener)",settings:"Ajustes",theme:"Tema",dark:"Oscuro",light:"Claro",language:"Idioma",changePassword:"Cambiar Contraseña",currentPassword:"Contraseña actual",newPassword:"Nueva contraseña (6+ caracteres)",updatePassword:"Actualizar",logout:"Cerrar Sesión",kickedToast:"Has sido expulsado de esta sala",notifMention:"Te mencionaron en",notifDm:"Nuevo mensaje de",notifReply:"te respondió en",replyingTo:"Respondiendo a",deleteRoom:"Eliminar Lobby",deleteRoomConfirm:"¿Eliminar este lobby permanentemente? Se borrarán todos los mensajes.",roomDeleted:"Lobby eliminado",tabAccount:"Cuenta",tabAppearance:"Apariencia",tabDanger:"Peligro",account:"Cuenta",presets:"Preajustes",colors:"Colores",advanced:"Avanzado",advancedHint:"Sobrescritura completa de CSS. Se aplica después del resto. Solo afecta a tu navegador.",editCustomCss:"Editar CSS",resetAppearance:"Restablecer Apariencia",danger:"Zona de Peligro",logoutHint:"Cerrar sesión te desconectará de cualquier sala.",customCssTitle:"CSS Personalizado",customCssHint:"Todo lo que escribas se inyecta después del resto de estilos. Solo se aplica en tu navegador.",appearanceReset:"Apariencia restablecida",insertVars:"Insertar Variables" },
+  fr: { tabLogin:"Connexion",tabSignup:"Inscription",loginBtn:"Connexion",signupBtn:"Créer un compte",email:"Email",password:"Mot de passe",password6:"Mot de passe (6+ caractères)",username:"Pseudo",backToLobby:"← Salon",rooms:"Salons",publicRoom:"Salon Public",createRoom:"+ Créer un Salon",online:"En ligne",offline:"Hors ligne",admin:"Admin",manageKicked:"Gérer Exclus",roomSettings:"Paramètres du Salon",backToRoom:"← Retour au salon",noMessages:"Aucun message",typeMessage:"Écrire un message...",media:"Média",send:"Envoyer",notifications:"Notifications",markAllRead:"Tout marquer lu",noNotifications:"Aucune notification",sendDm:"Envoyer un MP",block:"Bloquer",kick:"Exclure du salon",close:"Fermer",editProfile:"Modifier le Profil",bio:"Bio",save:"Enregistrer",cancel:"Annuler",clear:"Effacer",roomCode:"Code du salon (id unique)",lobbyName:"Nom du Salon",maxUsers:"Utilisateurs max (2–500)",passwordOptional:"Mot de passe (optionnel)",create:"Créer",passwordRequired:"Mot de Passe Requis",room:"Salon",isLocked:"est verrouillé.",join:"Rejoindre",kickedUsers:"Utilisateurs Exclus",nobodyKicked:"Personne n'est exclu.",changePasswordKeep:"Changer le mot de passe (vide pour garder)",settings:"Paramètres",theme:"Thème",dark:"Sombre",light:"Clair",language:"Langue",changePassword:"Changer le Mot de Passe",currentPassword:"Mot de passe actuel",newPassword:"Nouveau mot de passe (6+ caractères)",updatePassword:"Mettre à jour",logout:"Déconnexion",kickedToast:"Vous avez été exclu de ce salon",notifMention:"Vous avez été mentionné dans",notifDm:"Nouveau message de",notifReply:"vous a répondu dans",replyingTo:"Répondre à",deleteRoom:"Supprimer le Salon",deleteRoomConfirm:"Supprimer ce salon définitivement ? Tous les messages seront effacés.",roomDeleted:"Salon supprimé",tabAccount:"Compte",tabAppearance:"Apparence",tabDanger:"Danger",account:"Compte",presets:"Préréglages",colors:"Couleurs",advanced:"Avancé",advancedHint:"Remplacement CSS complet. S'applique après tous les autres styles. N'affecte que votre navigateur.",editCustomCss:"Modifier CSS",resetAppearance:"Réinitialiser l'Apparence",danger:"Zone Dangereuse",logoutHint:"La déconnexion vous déconnectera de tout salon.",customCssTitle:"CSS Personnalisé",customCssHint:"Tout ce que vous écrivez ici est injecté après tous les autres styles. S'applique uniquement à votre navigateur.",appearanceReset:"Apparence réinitialisée",insertVars:"Insérer Variables" },
+  ru: { tabLogin:"Войти",tabSignup:"Регистрация",loginBtn:"Войти",signupBtn:"Создать аккаунт",email:"Email",password:"Пароль",password6:"Пароль (6+ символов)",username:"Имя",backToLobby:"← Лобби",rooms:"Комнаты",publicRoom:"Публичная",createRoom:"+ Создать",online:"Онлайн",offline:"Офлайн",admin:"Админ",manageKicked:"Управление Киками",roomSettings:"Настройки Комнаты",backToRoom:"← Назад в комнату",noMessages:"Сообщений нет",typeMessage:"Введите сообщение...",media:"Медиа",send:"Отправить",notifications:"Уведомления",markAllRead:"Прочитать все",noNotifications:"Нет уведомлений",sendDm:"Написать ЛС",block:"Блок",kick:"Кикнуть из комнаты",close:"Закрыть",editProfile:"Профиль",bio:"О себе",save:"Сохранить",cancel:"Отмена",clear:"Очистить",roomCode:"Код комнаты (уникальный)",lobbyName:"Название Лобби",maxUsers:"Макс. людей (2–500)",passwordOptional:"Пароль (необязательно)",create:"Создать",passwordRequired:"Нужен Пароль",room:"Комната",isLocked:"заблокирована.",join:"Войти",kickedUsers:"Кикнутые",nobodyKicked:"Никто не кикнут.",changePasswordKeep:"Сменить пароль (пусто = оставить)",settings:"Настройки",theme:"Тема",dark:"Тёмная",light:"Светлая",language:"Язык",changePassword:"Сменить Пароль",currentPassword:"Текущий пароль",newPassword:"Новый пароль (6+ символов)",updatePassword:"Обновить",logout:"Выйти",kickedToast:"Вас кикнули из этой комнаты",notifMention:"Вас упомянули в",notifDm:"Новое сообщение от",notifReply:"ответил вам в",replyingTo:"Ответ",deleteRoom:"Удалить Лобби",deleteRoomConfirm:"Удалить это лобби навсегда? Все сообщения будут стёрты.",roomDeleted:"Лобби удалено",tabAccount:"Аккаунт",tabAppearance:"Внешний вид",tabDanger:"Опасно",account:"Аккаунт",presets:"Пресеты",colors:"Цвета",advanced:"Дополнительно",advancedHint:"Полная замена CSS. Применяется после всех остальных стилей. Влияет только на ваш браузер.",editCustomCss:"Изменить CSS",resetAppearance:"Сбросить оформление",danger:"Опасная Зона",logoutHint:"Выход отключит вас от комнаты.",customCssTitle:"Свой CSS",customCssHint:"Всё, что вы напишете, добавляется после остальных стилей. Применяется только к вашему браузеру.",appearanceReset:"Оформление сброшено",insertVars:"Вставить переменные" }
 };
 
 const state = {
   me: null, roomCode: null, roomMeta: null, roomRef: null, queryRef: null,
   presenceRef: null, presenceOff: null, kickedOff: null,
-  seenOff: null, seenData: {},
+  seenOff: null, seenData: {}, presenceData: {},
   blocked: new Set(), userCache: new Map(),
   pendingFile: null, dmPendingFile: null,
   dmUid: null, dmQueryRef: null, dmOff: null,
@@ -66,8 +78,7 @@ const state = {
   reply: null, dmReply: null,
   lastGroupEl: null, lastGroupUid: null, lastGroupTime: 0,
   dmLastGroupEl: null, dmLastGroupUid: null, dmLastGroupTime: 0,
-  sweepId: null, cleanId: null, presenceData: {}, usernameIndex: null,
-  dmRenderedIds: new Set()
+  sweepId: null, cleanId: null, usernameIndex: null
 };
 
 let currentLang = localStorage.getItem("lang") || "en";
@@ -80,7 +91,7 @@ const applyTranslations = () => {
 };
 const applyTheme = () => document.body.setAttribute("data-theme", currentTheme);
 
-// ---------- Appearance / theme engine ----------
+// ---------- Appearance ----------
 const COLOR_VARS = [
   { key: "bg",           label: "Background" },
   { key: "bg-app",       label: "App" },
@@ -96,16 +107,17 @@ const COLOR_VARS = [
   { key: "name",         label: "Other Name" },
   { key: "name-own",     label: "Own Name" },
   { key: "link",         label: "Link" },
-  { key: "danger",       label: "Danger" }
+  { key: "danger",       label: "Danger" },
+  { key: "icon-color",   label: "Icon Color" }
 ];
 
 const PRESETS = {
-  "Default Dark":  { bg:"#0e0e0e", "bg-app":"#1a1a1a", "bg-panel":"#161616", "bg-header":"#241a1a", "bg-input":"#0e0e0e", border:"#3a2a2a", text:"#d6a0a0", "text-dim":"#b08080", "text-bright":"#e8d0d0", accent:"#d94a4a", "accent-hover":"#ff5a5a", name:"#6fc77f", "name-own":"#9ac76f", link:"#6fa8ff", danger:"#ff5a5a" },
-  "Default Light": { bg:"#f5f5f5", "bg-app":"#ffffff", "bg-panel":"#efefef", "bg-header":"#e8e0e0", "bg-input":"#ffffff", border:"#d0c0c0", text:"#4a2020", "text-dim":"#7a5a5a", "text-bright":"#2a1010", accent:"#b83030", "accent-hover":"#d94a4a", name:"#2a7a3a", "name-own":"#4a8a2a", link:"#1a5ad0", danger:"#c02020" },
-  "Nord":          { bg:"#2e3440", "bg-app":"#3b4252", "bg-panel":"#2e3440", "bg-header":"#434c5e", "bg-input":"#2e3440", border:"#4c566a", text:"#d8dee9", "text-dim":"#a0aec0", "text-bright":"#eceff4", accent:"#88c0d0", "accent-hover":"#8fbcbb", name:"#a3be8c", "name-own":"#ebcb8b", link:"#81a1c1", danger:"#bf616a" },
-  "Solarized":     { bg:"#002b36", "bg-app":"#073642", "bg-panel":"#002b36", "bg-header":"#073642", "bg-input":"#002b36", border:"#586e75", text:"#93a1a1", "text-dim":"#657b83", "text-bright":"#eee8d5", accent:"#b58900", "accent-hover":"#cb4b16", name:"#859900", "name-own":"#2aa198", link:"#268bd2", danger:"#dc322f" },
-  "Terminal":      { bg:"#000000", "bg-app":"#0a0a0a", "bg-panel":"#050505", "bg-header":"#001a00", "bg-input":"#000000", border:"#003300", text:"#00ff41", "text-dim":"#008f11", "text-bright":"#7aff7a", accent:"#00ff41", "accent-hover":"#7aff7a", name:"#00ff41", "name-own":"#7aff7a", link:"#00bfff", danger:"#ff0055" },
-  "Pink":          { bg:"#1a0a1a", "bg-app":"#241224", "bg-panel":"#1f0d1f", "bg-header":"#3d1a3d", "bg-input":"#1a0a1a", border:"#5a2a5a", text:"#ffc0f0", "text-dim":"#c080b0", "text-bright":"#ffe0f5", accent:"#ff69b4", "accent-hover":"#ff85c8", name:"#ffb3d9", "name-own":"#ffd9ec", link:"#ff66cc", danger:"#ff3366" }
+  "Default Dark":  { bg:"#0e0e0e","bg-app":"#1a1a1a","bg-panel":"#161616","bg-header":"#241a1a","bg-input":"#0e0e0e",border:"#3a2a2a",text:"#d6a0a0","text-dim":"#b08080","text-bright":"#e8d0d0",accent:"#d94a4a","accent-hover":"#ff5a5a",name:"#6fc77f","name-own":"#9ac76f",link:"#6fa8ff",danger:"#ff5a5a","icon-color":"#d94a4a" },
+  "Default Light": { bg:"#f5f5f5","bg-app":"#ffffff","bg-panel":"#efefef","bg-header":"#e8e0e0","bg-input":"#ffffff",border:"#d0c0c0",text:"#4a2020","text-dim":"#7a5a5a","text-bright":"#2a1010",accent:"#b83030","accent-hover":"#d94a4a",name:"#2a7a3a","name-own":"#4a8a2a",link:"#1a5ad0",danger:"#c02020","icon-color":"#b83030" },
+  "Nord":          { bg:"#2e3440","bg-app":"#3b4252","bg-panel":"#2e3440","bg-header":"#434c5e","bg-input":"#2e3440",border:"#4c566a",text:"#d8dee9","text-dim":"#a0aec0","text-bright":"#eceff4",accent:"#88c0d0","accent-hover":"#8fbcbb",name:"#a3be8c","name-own":"#ebcb8b",link:"#81a1c1",danger:"#bf616a","icon-color":"#88c0d0" },
+  "Solarized":     { bg:"#002b36","bg-app":"#073642","bg-panel":"#002b36","bg-header":"#073642","bg-input":"#002b36",border:"#586e75",text:"#93a1a1","text-dim":"#657b83","text-bright":"#eee8d5",accent:"#b58900","accent-hover":"#cb4b16",name:"#859900","name-own":"#2aa198",link:"#268bd2",danger:"#dc322f","icon-color":"#b58900" },
+  "Terminal":      { bg:"#000000","bg-app":"#0a0a0a","bg-panel":"#050505","bg-header":"#001a00","bg-input":"#000000",border:"#003300",text:"#00ff41","text-dim":"#008f11","text-bright":"#7aff7a",accent:"#00ff41","accent-hover":"#7aff7a",name:"#00ff41","name-own":"#7aff7a",link:"#00bfff",danger:"#ff0055","icon-color":"#00ff41" },
+  "Pink":          { bg:"#1a0a1a","bg-app":"#241224","bg-panel":"#1f0d1f","bg-header":"#3d1a3d","bg-input":"#1a0a1a",border:"#5a2a5a",text:"#ffc0f0","text-dim":"#c080b0","text-bright":"#ffe0f5",accent:"#ff69b4","accent-hover":"#ff85c8",name:"#ffb3d9","name-own":"#ffd9ec",link:"#ff66cc",danger:"#ff3366","icon-color":"#ff69b4" }
 };
 
 let appearance = JSON.parse(localStorage.getItem("appearance") || "{}");
@@ -126,8 +138,8 @@ function applyAppearance() {
   cssTag.textContent = customCss;
 }
 
-function saveAppearance() { localStorage.setItem("appearance", JSON.stringify(appearance)); }
-function saveCustomCss() { localStorage.setItem("customCss", customCss); }
+const saveAppearance = () => localStorage.setItem("appearance", JSON.stringify(appearance));
+const saveCustomCss = () => localStorage.setItem("customCss", customCss);
 
 const shaKey = s => CryptoJS.SHA256(s + "::salt::v1").toString();
 const encryptText = (plain, key) => plain ? CryptoJS.AES.encrypt(plain, shaKey(key)).toString() : "";
@@ -171,12 +183,13 @@ async function getPresenceCount(code) {
   } catch { return 0; }
 }
 
-$("notifIcon").src = ICONS.bell;
-$("settingsIcon").src = ICONS.gear;
-$("paperclipIcon").src = ICONS.paperclip;
-$("dmPaperclipIcon").src = ICONS.paperclip;
-$("editPfpIcon").src = ICONS.pencil;
-$("emptyIcon").src = ICONS.chat;
+// Icon element mask setup
+function applyIconMask(el, key) {
+  if (!el || !ICON_PATHS[key]) return;
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='${ICON_PATHS[key]}'/></svg>`)}")`;
+  el.style.webkitMaskImage = url;
+  el.style.maskImage = url;
+}
 
 const el = {
   authScreen: $("authScreen"), appRoot: $("appRoot"),
@@ -199,7 +212,7 @@ const el = {
   adminBadge: $("adminBadge"),
   chatContainer: $("chatContainer"), emptyState: $("emptyState"),
   messageInput: $("messageInput"), fileInput: $("fileInput"), fileLabel: $("fileLabel"),
-  sendBtn: $("sendBtn"), toastEl: $("toast"),
+  sendBtn: $("sendBtn"), sendIcon: $("sendIcon"), toastEl: $("toast"),
   replyBar: $("replyBar"), replyBarName: $("replyBarName"), replyBarPreview: $("replyBarPreview"), replyBarCancel: $("replyBarCancel"),
   filePreview: $("filePreview"), filePreviewImg: $("filePreviewImg"), filePreviewVideo: $("filePreviewVideo"),
   filePreviewName: $("filePreviewName"), filePreviewRemove: $("filePreviewRemove"),
@@ -208,7 +221,7 @@ const el = {
   dmReplyBar: $("dmReplyBar"), dmReplyBarName: $("dmReplyBarName"), dmReplyBarPreview: $("dmReplyBarPreview"), dmReplyBarCancel: $("dmReplyBarCancel"),
   dmFilePreview: $("dmFilePreview"), dmFilePreviewImg: $("dmFilePreviewImg"), dmFilePreviewVideo: $("dmFilePreviewVideo"),
   dmFilePreviewName: $("dmFilePreviewName"), dmFilePreviewRemove: $("dmFilePreviewRemove"),
-  dmInput: $("dmInput"), dmFileInput: $("dmFileInput"), dmSendBtn: $("dmSendBtn"), dmFileLabel: $("dmFileLabel"),
+  dmInput: $("dmInput"), dmFileInput: $("dmFileInput"), dmSendBtn: $("dmSendBtn"), dmSendIcon: $("dmSendIcon"), dmFileLabel: $("dmFileLabel"),
   userModal: $("userModal"), modalPfp: $("modalPfp"), modalName: $("modalName"), modalBio: $("modalBio"),
   modalDmBtn: $("modalDmBtn"), modalBlockBtn: $("modalBlockBtn"), modalKickBtn: $("modalKickBtn"), modalCloseBtn: $("modalCloseBtn"),
   profileModal: $("profileModal"), myProfileAvatar: $("myProfileAvatar"),
@@ -232,8 +245,18 @@ const el = {
   presetGrid: $("presetGrid"), colorGrid: $("colorGrid"),
   openAdvancedCssBtn: $("openAdvancedCssBtn"), resetAppearanceBtn: $("resetAppearanceBtn"),
   advancedCssModal: $("advancedCssModal"), customCssInput: $("customCssInput"),
-  saveCustomCssBtn: $("saveCustomCssBtn"), cancelCustomCssBtn: $("cancelCustomCssBtn"), clearCustomCssBtn: $("clearCustomCssBtn")
+  saveCustomCssBtn: $("saveCustomCssBtn"), cancelCustomCssBtn: $("cancelCustomCssBtn"), clearCustomCssBtn: $("clearCustomCssBtn"),
+  insertVarsBtn: $("insertVarsBtn")
 };
+
+applyIconMask($("notifIcon"), "bell");
+applyIconMask($("settingsIcon"), "gear");
+applyIconMask($("paperclipIcon"), "paperclip");
+applyIconMask($("dmPaperclipIcon"), "paperclip");
+applyIconMask($("editPfpIcon"), "pencil");
+applyIconMask($("emptyIcon"), "chat");
+applyIconMask(el.sendIcon, "send");
+applyIconMask(el.dmSendIcon, "send");
 
 function showToast(msg) {
   el.toastEl.textContent = msg;
@@ -282,15 +305,13 @@ function botPfp() {
 }
 
 async function fetchUser(uid) {
-  if (uid === BOT_UID) {
-    return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot" };
-  }
+  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot" };
   const cached = state.userCache.get(uid);
   if (cached) return cached;
   try {
     const snap = await get(ref(db, `users/${uid}`));
     const d = snap.val() || {};
-    const p = { uid, username: d.username || "user", pfp: d.pfp || defaultPfp(d.username), bio: d.bio || "" };
+    const p = { uid, username: d.username || "user", pfp: d.pfp || defaultPfp(d.username), bio: d.bio || "", createdAt: d.createdAt || null };
     state.userCache.set(uid, p);
     return p;
   } catch {
@@ -312,7 +333,7 @@ function updateAdminUI() {
 const updateMyPfp = () => { el.myPfpBtn.src = state.me.pfp || defaultPfp(state.me.username); };
 
 function showLobby() {
-  closeDm();
+  try { closeDm(); } catch (e) { console.warn("closeDm error:", e); }
   el.lobbyView.classList.remove("hidden");
   el.roomView.classList.add("hidden");
   el.backToLobbyBtn.classList.add("hidden");
@@ -347,7 +368,7 @@ function setDmReply(target) {
 const clearReply = () => setReply(null);
 const clearDmReply = () => setDmReply(null);
 
-// ---------- Appearance UI builders ----------
+// ---------- Appearance UI ----------
 function buildPresetGrid() {
   el.presetGrid.innerHTML = "";
   for (const [name, colors] of Object.entries(PRESETS)) {
@@ -401,6 +422,16 @@ function buildColorGrid() {
     });
     el.colorGrid.appendChild(row);
   }
+}
+
+function generateVarsTemplate() {
+  const lines = [":root {"];
+  for (const { key, label } of COLOR_VARS) {
+    const v = appearance[key] || getComputedStyle(document.documentElement).getPropertyValue(`--${key}`).trim() || "#000000";
+    lines.push(`  --${key}: ${v}; /* ${label} */`);
+  }
+  lines.push("}");
+  return lines.join("\n");
 }
 
 // ---------- Auth ----------
@@ -520,14 +551,11 @@ async function sweepRooms() {
     const rs = await get(ref(db, "rooms"));
     const rooms = rs.val() || {};
     const now = Date.now();
-
     for (const [code, room] of Object.entries(rooms)) {
       if (code === PUBLIC_ROOM || room.isPublic) continue;
       if (!room.adminUid || room.adminUid === "system") continue;
-
       const p = await getPresenceCount(code);
       if (p > 0) continue;
-
       let last = room.createdAt || 0;
       try {
         const lm = await get(query(ref(db, `chats/${code}/messages`), limitToLast(1)));
@@ -538,7 +566,6 @@ async function sweepRooms() {
         }
       } catch {}
       if (room.lastActivity > last) last = room.lastActivity;
-
       if (now - last > EMPTY_TTL) {
         try {
           await remove(ref(db, `rooms/${code}`));
@@ -550,7 +577,6 @@ async function sweepRooms() {
   } catch (e) { console.warn("Sweep error:", e); }
 }
 
-// ---------- Message auto-clean ----------
 async function cleanRoomMessages() {
   if (!state.me || !state.roomCode) return;
   try {
@@ -559,11 +585,9 @@ async function cleanRoomMessages() {
     const now = Date.now();
     const entries = Object.entries(data);
     const toDelete = [];
-
     for (const [id, msg] of entries) {
       if (msg.timestamp && now - msg.timestamp > MSG_TTL_MS) toDelete.push(id);
     }
-
     const remaining = entries.length - toDelete.length;
     if (remaining > MSG_MAX) {
       const sorted = entries.filter(([id]) => !toDelete.includes(id))
@@ -571,7 +595,6 @@ async function cleanRoomMessages() {
       const extra = remaining - MSG_MAX;
       for (let i = 0; i < extra; i++) toDelete.push(sorted[i][0]);
     }
-
     for (const id of toDelete) {
       try { await remove(ref(db, `chats/${state.roomCode}/messages/${id}`)); } catch {}
     }
@@ -624,9 +647,9 @@ const scheduleLobbyRender = debounce(async (rooms) => {
     }
     const max = r.maxUsers || 50;
     const iconParts = [];
-    if (r.hasPassword) iconParts.push(`<img class="icon-img" src="${ICONS.lock}" alt="">`);
-    if (r.isPublic || code === PUBLIC_ROOM) iconParts.push(`<img class="icon-img" src="${ICONS.globe}" alt="">`);
-    if (r.adminUid === state.me?.uid) iconParts.push(`<img class="icon-img" src="${ICONS.crown}" alt="">`);
+    if (r.hasPassword) iconParts.push(`<span class="icon-img" data-icon="lock"></span>`);
+    if (r.isPublic || code === PUBLIC_ROOM) iconParts.push(`<span class="icon-img" data-icon="globe"></span>`);
+    if (r.adminUid === state.me?.uid) iconParts.push(`<span class="icon-img" data-icon="crown"></span>`);
     card.classList.toggle("pinned", code === PUBLIC_ROOM);
     card.innerHTML = `
       <div class="rc-name">${esc(r.name || code)}</div>
@@ -635,6 +658,7 @@ const scheduleLobbyRender = debounce(async (rooms) => {
         <span>${counts[code]} / ${max}</span>
         <div class="rc-icons">${iconParts.join("")}</div>
       </div>`;
+    card.querySelectorAll("[data-icon]").forEach(x => applyIconMask(x, x.dataset.icon));
   }
 
   for (const [code, node] of state.roomCards) {
@@ -665,14 +689,12 @@ async function requestJoinRoom(code) {
   if (!rs.exists()) return showToast("That room no longer exists");
   const room = rs.val();
   if (room.kicked?.[state.me.uid]) return showToast(t("kickedToast"));
-
   const max = room.maxUsers || 50;
   const pSnap = await get(ref(db, `chats/${code}/presence`));
   const pData = pSnap.val() || {};
   const inRoom = !!pData[state.me.uid];
   const count = Object.keys(pData).length;
   if (!inRoom && count >= max) return showToast(`Room is full (${count}/${max})`);
-
   if (room.hasPassword) {
     el.passwordRoomCode.textContent = code;
     el.joinRoomPassword.value = "";
@@ -695,7 +717,6 @@ el.createRoomBtn.addEventListener("click", async () => {
   if (max < 2 || max > 500) return el.createRoomError.textContent = "Max users must be 2–500";
   const ex = await get(ref(db, `rooms/${code}`));
   if (ex.exists()) return el.createRoomError.textContent = "That code is taken";
-
   const meta = {
     name, adminUid: state.me.uid, createdAt: serverTimestamp(), lastActivity: Date.now(),
     hasPassword: !!pw, passwordHash: pw ? hashPassword(pw) : "", maxUsers: max, kicked: {}
@@ -753,7 +774,6 @@ async function enterRoom(code, roomMeta) {
   onChildAdded(state.queryRef, handler);
   state.groupOff = () => off(state.queryRef, "child_added", handler);
 
-  // Presence
   state.presenceRef = ref(db, `chats/${code}/presence/${state.me.uid}`);
   await set(state.presenceRef, { username: state.me.username, joinedAt: serverTimestamp() });
   await set(ref(db, `chats/${code}/seen/${state.me.uid}`), {
@@ -780,7 +800,6 @@ async function enterRoom(code, roomMeta) {
     }
   });
 
-  // Advisories + cleanup
   pushAdvisory(code);
   if (state.cleanId) clearInterval(state.cleanId);
   state.cleanId = setInterval(cleanRoomMessages, AUTO_CLEAN_MS);
@@ -811,11 +830,12 @@ async function detachFromRoom() {
   if (state.cleanId) { clearInterval(state.cleanId); state.cleanId = null; }
   if (state.presenceRef) { try { await remove(state.presenceRef); } catch {} state.presenceRef = null; }
   state.roomRef = null; state.queryRef = null; state.roomCode = null; state.roomMeta = null;
+  state.presenceData = {}; state.seenData = {};
   updateAdminUI();
 }
 
 el.backToLobbyBtn.addEventListener("click", async () => {
-  closeDm();
+  try { closeDm(); } catch (e) { console.warn(e); }
   await detachFromRoom();
   resetChatUI();
   showLobby();
@@ -891,8 +911,14 @@ document.addEventListener("click", (e) => {
 
 el.markAllReadBtn.addEventListener("click", async () => {
   const updates = {};
-  for (const n of state.notifications) if (!n.read) updates[`${n.id}/read`] = true;
-  if (Object.keys(updates).length) try { update(ref(db, `notifications/${state.me.uid}`), updates); } catch {}
+  for (const n of state.notifications) {
+    if (!n.read) updates[`${n.id}/read`] = true;
+  }
+  if (Object.keys(updates).length) {
+    try {
+      await update(ref(db, `notifications/${state.me.uid}`), updates);
+    } catch (e) { showToast("Could not mark read: " + e.message); }
+  }
 });
 
 async function pushNotification(targetUid, payload) {
@@ -935,11 +961,8 @@ async function renderMessage(container, msgId, msg, isOwn, isDm) {
     body.className = "group-body";
     group.appendChild(head); group.appendChild(body);
     container.appendChild(group);
-    if (isDm) {
-      state.dmLastGroupEl = group; state.dmLastGroupUid = msg.uid;
-    } else {
-      state.lastGroupEl = group; state.lastGroupUid = msg.uid;
-    }
+    if (isDm) { state.dmLastGroupEl = group; state.dmLastGroupUid = msg.uid; }
+    else      { state.lastGroupEl = group; state.lastGroupUid = msg.uid; }
   }
   if (isDm) state.dmLastGroupTime = now; else state.lastGroupTime = now;
 
@@ -989,7 +1012,11 @@ async function renderMessage(container, msgId, msg, isOwn, isDm) {
     actions.className = "msg-actions";
 
     const replyBtn = document.createElement("button");
-    replyBtn.textContent = "Reply";
+    replyBtn.title = "Reply";
+    const replyIcon = document.createElement("span");
+    replyIcon.className = "icon-img";
+    applyIconMask(replyIcon, "reply");
+    replyBtn.appendChild(replyIcon);
     replyBtn.addEventListener("click", () => {
       const target = { uid: msg.uid, username: sender.username, previewText: plainText ? plainText.slice(0, 80) : "[media]", msgId };
       if (isDm) setDmReply(target); else setReply(target);
@@ -1000,7 +1027,12 @@ async function renderMessage(container, msgId, msg, isOwn, isDm) {
     const canDelete = isOwn || (isAdmin() && !isDm);
     if (canDelete) {
       const del = document.createElement("button");
-      del.className = "delete-msg"; del.textContent = "Delete";
+      del.className = "delete-msg";
+      del.title = "Delete";
+      const delIcon = document.createElement("span");
+      delIcon.className = "icon-img";
+      applyIconMask(delIcon, "trash");
+      del.appendChild(delIcon);
       del.addEventListener("click", async () => {
         if (!confirm("Delete this message?")) return;
         try {
@@ -1081,22 +1113,17 @@ function buildLineContent(lineEl, plainText) {
 
 // ---------- Sidebar ----------
 async function renderUserList() {
-  const onlineUids = Object.keys(state.presenceData);
-  const allSeenUids = Object.keys(state.seenData);
-  const offlineUids = allSeenUids.filter(uid => !state.presenceData[uid] && uid !== state.me.uid);
+  const onlineUids = Object.keys(state.presenceData).sort((a, b) => {
+    if (a === state.me.uid) return -1;
+    if (b === state.me.uid) return 1;
+    return (state.presenceData[a]?.username || "").toLowerCase().localeCompare((state.presenceData[b]?.username || "").toLowerCase());
+  });
+  const offlineUids = Object.keys(state.seenData)
+    .filter(uid => !state.presenceData[uid] && uid !== state.me.uid)
+    .sort((a, b) => (state.seenData[a]?.username || "").toLowerCase().localeCompare((state.seenData[b]?.username || "").toLowerCase()));
 
   el.onlineCount.textContent = onlineUids.length;
   el.offlineCount.textContent = offlineUids.length;
-
-  const sortFn = (a, b) => {
-    if (a === state.me.uid) return -1;
-    if (b === state.me.uid) return 1;
-    const na = (state.seenData[a]?.username || state.presenceData[a]?.username || "").toLowerCase();
-    const nb = (state.seenData[b]?.username || state.presenceData[b]?.username || "").toLowerCase();
-    return na.localeCompare(nb);
-  };
-  onlineUids.sort(sortFn);
-  offlineUids.sort(sortFn);
 
   el.userList.innerHTML = "";
   const frag = document.createDocumentFragment();
@@ -1268,7 +1295,8 @@ async function openDm(otherUid) {
   if (!state.roomCode) await requestJoinRoom(PUBLIC_ROOM);
   if (state.dmUid === otherUid && !el.dmPanel.classList.contains("hidden")) return;
 
-  if (state.dmOff) { state.dmOff(); state.dmOff = null; }
+  try { if (state.dmOff) { state.dmOff(); state.dmOff = null; } } catch {}
+
   state.dmUid = otherUid;
   state.dmQueryRef = query(ref(db, dmPath(state.me.uid, otherUid)), limitToLast(100));
   resetDmUI();
@@ -1294,8 +1322,9 @@ async function openDm(otherUid) {
 }
 
 function closeDm() {
-  state.dmUid = null; state.dmQueryRef = null;
-  if (state.dmOff) { state.dmOff(); state.dmOff = null; }
+  state.dmUid = null;
+  state.dmQueryRef = null;
+  try { if (typeof state.dmOff === "function") { state.dmOff(); state.dmOff = null; } } catch (e) { console.warn("dmOff error", e); }
   el.dmPanel.classList.add("hidden");
   el.dmInput.disabled = true;
   el.dmFileInput.disabled = true;
@@ -1303,7 +1332,9 @@ function closeDm() {
   resetDmUI();
 }
 
-el.dmCloseBtn.addEventListener("click", () => closeDm());
+el.dmCloseBtn.addEventListener("click", () => {
+  closeDm();
+});
 
 async function reattachGroupListener() {
   if (state.groupOff) { state.groupOff(); state.groupOff = null; }
@@ -1484,7 +1515,7 @@ function clearDmPendingFile() {
 }
 
 // ---------- Profile ----------
-el.profileBtn.addEventListener("click", async () => {
+el.profileBtn.addEventListener("click", () => {
   el.editUsername.value = state.me.username;
   el.editBio.value = state.me.bio;
   el.editPfp.value = "";
@@ -1493,7 +1524,7 @@ el.profileBtn.addEventListener("click", async () => {
   el.profileHeroName.textContent = state.me.username;
   el.profileHeroEmail.textContent = state.me.email;
   const memberSince = state.me.createdAt ? new Date(state.me.createdAt).toLocaleDateString() : "—";
-  el.profileHeroMeta.textContent = `Member since ${memberSince}`;
+  el.profileHeroMeta.innerHTML = `<span>Member since ${memberSince}</span>`;
   el.profileModal.classList.remove("hidden");
 });
 
@@ -1593,6 +1624,12 @@ el.closeSettingsBtn.addEventListener("click", () => el.settingsModal.classList.a
 el.openAdvancedCssBtn.addEventListener("click", () => {
   el.customCssInput.value = customCss;
   el.advancedCssModal.classList.remove("hidden");
+});
+
+el.insertVarsBtn.addEventListener("click", () => {
+  const template = generateVarsTemplate();
+  const cur = el.customCssInput.value;
+  el.customCssInput.value = cur ? cur + "\n\n" + template : template;
 });
 
 el.saveCustomCssBtn.addEventListener("click", () => {
