@@ -126,6 +126,8 @@ const PRESETS = {
 
 let appearance = JSON.parse(localStorage.getItem("appearance") || "{}");
 let customCss = localStorage.getItem("customCss") || "";
+let customHtml = localStorage.getItem("customHtml") || "";
+let customJs = localStorage.getItem("customJs") || "";
 
 function applyAppearance() {
   const lines = [":root {"];
@@ -143,10 +145,31 @@ function applyAppearance() {
     document.head.appendChild(cssTag);
   }
   cssTag.textContent = combined;
+
+  applyCustomHtml();
+  applyCustomJs();
+}
+
+function applyCustomHtml() {
+  const mount = document.getElementById("customHtmlMount");
+  if (!mount) return;
+  mount.innerHTML = customHtml;
+}
+
+function applyCustomJs() {
+  if (!customJs.trim()) return;
+  try {
+    const fn = new Function(customJs);
+    fn();
+  } catch (e) {
+    console.warn("[custom js]", e);
+  }
 }
 
 const saveAppearance = () => localStorage.setItem("appearance", JSON.stringify(appearance));
 const saveCustomCss = () => localStorage.setItem("customCss", customCss);
+const saveCustomHtml = () => localStorage.setItem("customHtml", customHtml);
+const saveCustomJs = () => localStorage.setItem("customJs", customJs);
 
 const shaKey = s => CryptoJS.SHA256(s + "::salt::v1").toString();
 const encryptText = (plain, key) => plain ? CryptoJS.AES.encrypt(plain, shaKey(key)).toString() : "";
@@ -243,7 +266,10 @@ const el = {
   closeSettingsBtn: $("closeSettingsBtn"), settingsError: $("settingsError"),
   presetGrid: $("presetGrid"), colorGrid: $("colorGrid"),
   openAdvancedCssBtn: $("openAdvancedCssBtn"), resetAppearanceBtn: $("resetAppearanceBtn"),
-  advancedCssModal: $("advancedCssModal"), customCssInput: $("customCssInput"),
+  advancedCssModal: $("advancedCssModal"),
+  customCssInput: $("customCssInput"),
+  customHtmlInput: $("customHtmlInput"),
+  customJsInput: $("customJsInput"),
   saveCustomCssBtn: $("saveCustomCssBtn"), cancelCustomCssBtn: $("cancelCustomCssBtn"), clearCustomCssBtn: $("clearCustomCssBtn"),
   insertVarsBtn: $("insertVarsBtn")
 };
@@ -1679,12 +1705,26 @@ on(el.settingsBtn, "click", () => {
 
 document.querySelectorAll(".settings-tab").forEach(tab => {
   tab.addEventListener("click", () => {
-    document.querySelectorAll(".settings-tab").forEach(x => x.classList.remove("active"));
+    if (!tab.dataset.tab) return;
+    document.querySelectorAll(".settings-tab").forEach(x => {
+      if (x.dataset.tab) x.classList.remove("active");
+    });
     tab.classList.add("active");
     const target = tab.dataset.tab;
     $("paneAccount")?.classList.toggle("hidden", target !== "account");
     $("paneAppearance")?.classList.toggle("hidden", target !== "appearance");
     $("paneDanger")?.classList.toggle("hidden", target !== "danger");
+  });
+});
+
+document.querySelectorAll("[data-custom-tab]").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll("[data-custom-tab]").forEach(x => x.classList.remove("active"));
+    tab.classList.add("active");
+    const target = tab.dataset.customTab;
+    $("customPaneCss")?.classList.toggle("hidden", target !== "css");
+    $("customPaneHtml")?.classList.toggle("hidden", target !== "html");
+    $("customPaneJs")?.classList.toggle("hidden", target !== "js");
   });
 });
 
@@ -1722,6 +1762,14 @@ on(el.closeSettingsBtn, "click", () => el.settingsModal.classList.add("hidden"))
 
 on(el.openAdvancedCssBtn, "click", () => {
   el.customCssInput.value = customCss;
+  el.customHtmlInput.value = customHtml;
+  el.customJsInput.value = customJs;
+  document.querySelectorAll("[data-custom-tab]").forEach(x => x.classList.remove("active"));
+  const cssTab = document.querySelector('[data-custom-tab="css"]');
+  if (cssTab) cssTab.classList.add("active");
+  $("customPaneCss")?.classList.remove("hidden");
+  $("customPaneHtml")?.classList.add("hidden");
+  $("customPaneJs")?.classList.add("hidden");
   el.advancedCssModal.classList.remove("hidden");
 });
 
@@ -1733,20 +1781,33 @@ on(el.insertVarsBtn, "click", () => {
 
 on(el.saveCustomCssBtn, "click", () => {
   customCss = el.customCssInput.value;
+  customHtml = el.customHtmlInput.value;
+  customJs = el.customJsInput.value;
   saveCustomCss();
+  saveCustomHtml();
+  saveCustomJs();
   applyAppearance();
   el.advancedCssModal.classList.add("hidden");
-  showToast("Custom CSS saved");
+  showToast("Saved");
 });
 
 on(el.cancelCustomCssBtn, "click", () => el.advancedCssModal.classList.add("hidden"));
-on(el.clearCustomCssBtn, "click", () => { el.customCssInput.value = ""; });
+
+on(el.clearCustomCssBtn, "click", () => {
+  el.customCssInput.value = "";
+  el.customHtmlInput.value = "";
+  el.customJsInput.value = "";
+});
 
 on(el.resetAppearanceBtn, "click", () => {
   appearance = {};
   customCss = "";
+  customHtml = "";
+  customJs = "";
   saveAppearance();
   saveCustomCss();
+  saveCustomHtml();
+  saveCustomJs();
   document.documentElement.style.cssText = "";
   applyAppearance();
   buildColorGrid();
