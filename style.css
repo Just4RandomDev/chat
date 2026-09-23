@@ -1317,7 +1317,9 @@ body {
   text-transform: lowercase;
 }
 
-#customCssInput {
+#customCssInput,
+#customHtmlInput,
+#customJsInput {
   width: 100%;
   min-height: 320px;
   font-family: "Courier New", monospace;
@@ -1331,6 +1333,8 @@ body {
   border-radius: 4px;
   line-height: 1.5;
 }
+
+.custom-pane { min-height: 320px; }
 
 .bot-tag {
   display: inline-block;
