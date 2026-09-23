@@ -63,6 +63,12 @@
             <span id="capacityLabel" class="capacity-label"></span>
           </div>
           <div class="user-list" id="userList"></div>
+
+          <div class="side-title side-title-offline" id="offlineTitle">
+            <span data-i18n="offline">Offline</span> — <span id="offlineCount">0</span>
+          </div>
+          <div class="user-list" id="offlineList"></div>
+
           <div class="side-title hidden" id="adminPanelTitle" data-i18n="admin">Admin</div>
           <div class="side-admin hidden" id="adminPanel">
             <button id="kickPanelBtn" data-i18n="manageKicked">Manage Kicked</button>
@@ -194,6 +200,7 @@
         </div>
         <div class="profile-hero-name" id="profileHeroName">—</div>
         <div class="profile-hero-email" id="profileHeroEmail">—</div>
+        <div class="profile-hero-meta" id="profileHeroMeta"></div>
       </div>
       <h2 data-i18n="editProfile">Edit Profile</h2>
       <label class="field"><span data-i18n="username">Username</span><input type="text" id="editUsername" maxlength="24"></label>
@@ -259,31 +266,83 @@
   </div>
 
   <div class="modal-backdrop hidden" id="settingsModal">
-    <div class="modal">
+    <div class="modal settings-wide">
       <h2 data-i18n="settings">Settings</h2>
-      <label class="field"><span data-i18n="theme">Theme</span>
-        <select id="themeSelect">
-          <option value="dark" data-i18n="dark">Dark</option>
-          <option value="light" data-i18n="light">Light</option>
-        </select>
-      </label>
-      <label class="field"><span data-i18n="language">Language</span>
-        <select id="languageSelect">
-          <option value="en">English</option><option value="es">Español</option>
-          <option value="fr">Français</option><option value="ru">Русский</option>
-        </select>
-      </label>
-      <hr class="settings-divider">
-      <h3 class="settings-sub" data-i18n="changePassword">Change Password</h3>
-      <label class="field"><span data-i18n="currentPassword">Current password</span><input type="password" id="currentPassword"></label>
-      <label class="field"><span data-i18n="newPassword">New password (6+ chars)</span><input type="password" id="newPassword"></label>
-      <div class="modal-actions"><button id="changePasswordBtn" data-i18n="updatePassword">Update Password</button></div>
-      <hr class="settings-divider">
+
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="account" data-i18n="tabAccount">Account</button>
+        <button class="settings-tab" data-tab="appearance" data-i18n="tabAppearance">Appearance</button>
+        <button class="settings-tab" data-tab="danger" data-i18n="tabDanger">Danger</button>
+      </div>
+
+      <div class="settings-pane" id="paneAccount">
+        <h3 class="settings-sub" data-i18n="account">Account</h3>
+        <label class="field"><span data-i18n="theme">Theme</span>
+          <select id="themeSelect">
+            <option value="dark" data-i18n="dark">Dark</option>
+            <option value="light" data-i18n="light">Light</option>
+          </select>
+        </label>
+        <label class="field"><span data-i18n="language">Language</span>
+          <select id="languageSelect">
+            <option value="en">English</option><option value="es">Español</option>
+            <option value="fr">Français</option><option value="ru">Русский</option>
+          </select>
+        </label>
+
+        <hr class="settings-divider">
+
+        <h3 class="settings-sub" data-i18n="changePassword">Change Password</h3>
+        <label class="field"><span data-i18n="currentPassword">Current password</span><input type="password" id="currentPassword"></label>
+        <label class="field"><span data-i18n="newPassword">New password (6+ chars)</span><input type="password" id="newPassword"></label>
+        <div class="modal-actions"><button id="changePasswordBtn" data-i18n="updatePassword">Update Password</button></div>
+
+        <p class="auth-error" id="settingsError"></p>
+      </div>
+
+      <div class="settings-pane hidden" id="paneAppearance">
+        <h3 class="settings-sub" data-i18n="presets">Presets</h3>
+        <div class="preset-grid" id="presetGrid"></div>
+
+        <hr class="settings-divider">
+
+        <h3 class="settings-sub" data-i18n="colors">Colors</h3>
+        <div class="color-grid" id="colorGrid"></div>
+
+        <hr class="settings-divider">
+
+        <h3 class="settings-sub" data-i18n="advanced">Advanced</h3>
+        <p class="settings-hint" data-i18n="advancedHint">Full CSS override. Applies after all other styles. Only affects your browser.</p>
+        <div class="modal-actions">
+          <button id="openAdvancedCssBtn" data-i18n="editCustomCss">Edit Custom CSS</button>
+          <button class="ghost" id="resetAppearanceBtn" data-i18n="resetAppearance">Reset Appearance</button>
+        </div>
+      </div>
+
+      <div class="settings-pane hidden" id="paneDanger">
+        <h3 class="settings-sub" data-i18n="danger">Danger Zone</h3>
+        <p class="settings-hint" data-i18n="logoutHint">Logging out will disconnect you from any room.</p>
+        <div class="modal-actions">
+          <button class="danger" id="logoutBtn2" data-i18n="logout">Log Out</button>
+        </div>
+      </div>
+
       <div class="modal-actions">
-        <button class="danger" id="logoutBtn2" data-i18n="logout">Log Out</button>
         <button class="ghost" id="closeSettingsBtn" data-i18n="close">Close</button>
       </div>
-      <p class="auth-error" id="settingsError"></p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="advancedCssModal">
+    <div class="modal css-wide">
+      <h2 data-i18n="customCssTitle">Custom CSS</h2>
+      <p class="settings-hint" data-i18n="customCssHint">Anything you write here is injected after all other styles. Applies only to your browser. Try ".msg-line { font-size: 18px; }".</p>
+      <textarea id="customCssInput" spellcheck="false" rows="18"></textarea>
+      <div class="modal-actions">
+        <button id="saveCustomCssBtn" data-i18n="save">Save</button>
+        <button class="ghost" id="cancelCustomCssBtn" data-i18n="cancel">Cancel</button>
+        <button class="ghost" id="clearCustomCssBtn" data-i18n="clear">Clear</button>
+      </div>
     </div>
   </div>
 
