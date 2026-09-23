@@ -35,12 +35,11 @@ const HEARTBEAT_MS = 30 * 1000;
 
 const $ = id => document.getElementById(id);
 
-function applyIconMask(el, key) {
-  if (!el || !ICON_PATHS[key]) return;
-  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='${ICON_PATHS[key]}'/></svg>`)}")`;
-  el.style.webkitMaskImage = url;
-  el.style.maskImage = url;
-}
+const on = (element, event, handler) => {
+  if (element && typeof element.addEventListener === "function") {
+    element.addEventListener(event, handler);
+  }
+};
 
 const ICON_PATHS = {
   bell:      `M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z`,
@@ -55,6 +54,13 @@ const ICON_PATHS = {
   reply:     `M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z`,
   trash:     `M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z`
 };
+
+function applyIconMask(element, key) {
+  if (!element || !ICON_PATHS[key]) return;
+  const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='${ICON_PATHS[key]}'/></svg>`)}")`;
+  element.style.webkitMaskImage = url;
+  element.style.maskImage = url;
+}
 
 const translations = {
   en: { tabLogin:"Log In",tabSignup:"Sign Up",loginBtn:"Log In",signupBtn:"Create Account",email:"Email",password:"Password",password6:"Password (6+ chars)",username:"Username",backToLobby:"← Lobby",rooms:"Rooms",publicRoom:"Public Lobby",createRoom:"+ Create Room",online:"Online",offline:"Offline",admin:"Admin",manageKicked:"Manage Kicked",roomSettings:"Room Settings",backToRoom:"← Back to room",noMessages:"No messages yet",typeMessage:"Type a message...",media:"Media",send:"Send",notifications:"Notifications",markAllRead:"Mark all read",noNotifications:"No notifications",sendDm:"Send DM",block:"Block",kick:"Kick from room",close:"Close",editProfile:"Edit Profile",bio:"Bio",save:"Save",cancel:"Cancel",clear:"Clear",roomCode:"Room code (unique id)",lobbyName:"Lobby Name",maxUsers:"Max users (2–500)",passwordOptional:"Password (optional)",create:"Create",passwordRequired:"Password Required",room:"Room",isLocked:"is locked.",join:"Join",kickedUsers:"Kicked Users",nobodyKicked:"Nobody is kicked.",changePasswordKeep:"Change password (leave empty to keep)",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",language:"Language",changePassword:"Change Password",currentPassword:"Current password",newPassword:"New password (6+ chars)",updatePassword:"Update Password",logout:"Log Out",kickedToast:"You've been kicked from this room",notifMention:"You were mentioned in",notifDm:"New message from",notifReply:"replied to you in",replyingTo:"Replying to",deleteRoom:"Delete Lobby",deleteRoomConfirm:"Delete this lobby permanently? This removes all messages.",roomDeleted:"Lobby deleted",tabAccount:"Account",tabAppearance:"Appearance",tabDanger:"Danger",account:"Account",presets:"Presets",colors:"Colors",advanced:"Advanced",advancedHint:"Full CSS override. Applies after all other styles. Only affects your browser.",editCustomCss:"Edit Custom CSS",resetAppearance:"Reset Appearance",danger:"Danger Zone",logoutHint:"Logging out will disconnect you from any room.",customCssTitle:"Custom CSS",customCssHint:"Anything you write here is injected after all other styles. Applies only to your browser.",appearanceReset:"Appearance reset to default",insertVars:"Insert All Variables" },
@@ -202,7 +208,7 @@ const el = {
   adminBadge: $("adminBadge"),
   chatContainer: $("chatContainer"), emptyState: $("emptyState"),
   messageInput: $("messageInput"), fileInput: $("fileInput"), fileLabel: $("fileLabel"),
-  sendBtn: $("sendBtn"), sendIcon: $("sendIcon"), toastEl: $("toast"),
+  sendBtn: $("sendBtn"), toastEl: $("toast"),
   replyBar: $("replyBar"), replyBarName: $("replyBarName"), replyBarPreview: $("replyBarPreview"), replyBarCancel: $("replyBarCancel"),
   filePreview: $("filePreview"), filePreviewImg: $("filePreviewImg"), filePreviewVideo: $("filePreviewVideo"),
   filePreviewName: $("filePreviewName"), filePreviewRemove: $("filePreviewRemove"),
@@ -211,7 +217,7 @@ const el = {
   dmReplyBar: $("dmReplyBar"), dmReplyBarName: $("dmReplyBarName"), dmReplyBarPreview: $("dmReplyBarPreview"), dmReplyBarCancel: $("dmReplyBarCancel"),
   dmFilePreview: $("dmFilePreview"), dmFilePreviewImg: $("dmFilePreviewImg"), dmFilePreviewVideo: $("dmFilePreviewVideo"),
   dmFilePreviewName: $("dmFilePreviewName"), dmFilePreviewRemove: $("dmFilePreviewRemove"),
-  dmInput: $("dmInput"), dmFileInput: $("dmFileInput"), dmSendBtn: $("dmSendBtn"), dmSendIcon: $("dmSendIcon"), dmFileLabel: $("dmFileLabel"),
+  dmInput: $("dmInput"), dmFileInput: $("dmFileInput"), dmSendBtn: $("dmSendBtn"), dmFileLabel: $("dmFileLabel"),
   userModal: $("userModal"), modalPfp: $("modalPfp"), modalName: $("modalName"), modalBio: $("modalBio"),
   modalDmBtn: $("modalDmBtn"), modalBlockBtn: $("modalBlockBtn"), modalKickBtn: $("modalKickBtn"), modalCloseBtn: $("modalCloseBtn"),
   profileModal: $("profileModal"), myProfileAvatar: $("myProfileAvatar"),
@@ -245,24 +251,30 @@ applyIconMask($("paperclipIcon"), "paperclip");
 applyIconMask($("dmPaperclipIcon"), "paperclip");
 applyIconMask($("editPfpIcon"), "pencil");
 applyIconMask($("emptyIcon"), "chat");
-applyIconMask(el.sendIcon, "send");
-applyIconMask(el.dmSendIcon, "send");
+applyIconMask($("sendIcon"), "send");
+applyIconMask($("dmSendIcon"), "send");
 
 function showToast(msg) {
+  if (!el.toastEl) return;
   el.toastEl.textContent = msg;
   el.toastEl.classList.add("show");
   setTimeout(() => el.toastEl.classList.remove("show"), 2200);
 }
 
-function setStatus(on) {
-  el.statusDot.classList.toggle("online", on);
-  el.statusText.textContent = on ? "connected" : "disconnected";
-  el.messageInput.disabled = !on; el.fileInput.disabled = !on; el.sendBtn.disabled = !on;
-  el.fileLabel.style.opacity = on ? "1" : "0.5";
-  el.fileLabel.style.pointerEvents = on ? "auto" : "none";
+function setStatus(on_) {
+  if (el.statusDot) el.statusDot.classList.toggle("online", on_);
+  if (el.statusText) el.statusText.textContent = on_ ? "connected" : "disconnected";
+  if (el.messageInput) el.messageInput.disabled = !on_;
+  if (el.fileInput) el.fileInput.disabled = !on_;
+  if (el.sendBtn) el.sendBtn.disabled = !on_;
+  if (el.fileLabel) {
+    el.fileLabel.style.opacity = on_ ? "1" : "0.5";
+    el.fileLabel.style.pointerEvents = on_ ? "auto" : "none";
+  }
 }
 
 function resetChatUI() {
+  if (!el.chatContainer || !el.emptyState) return;
   el.chatContainer.innerHTML = "";
   el.chatContainer.appendChild(el.emptyState);
   el.emptyState.style.display = "flex";
@@ -271,6 +283,7 @@ function resetChatUI() {
 }
 
 function resetDmUI() {
+  if (!el.dmMessages || !el.dmEmptyState) return;
   el.dmMessages.innerHTML = "";
   el.dmMessages.appendChild(el.dmEmptyState);
   el.dmEmptyState.style.display = "flex";
@@ -278,8 +291,8 @@ function resetDmUI() {
   setDmReply(null);
 }
 
-const hideEmpty = () => { if (el.emptyState.parentNode === el.chatContainer) el.emptyState.style.display = "none"; };
-const hideDmEmpty = () => { if (el.dmEmptyState.parentNode === el.dmMessages) el.dmEmptyState.style.display = "none"; };
+const hideEmpty = () => { if (el.emptyState && el.emptyState.parentNode === el.chatContainer) el.emptyState.style.display = "none"; };
+const hideDmEmpty = () => { if (el.dmEmptyState && el.dmEmptyState.parentNode === el.dmMessages) el.dmEmptyState.style.display = "none"; };
 const fmtTime = ts => ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 
@@ -315,30 +328,31 @@ const isAdmin = () => state.me && state.roomMeta && state.roomMeta.adminUid === 
 
 function updateAdminUI() {
   const a = isAdmin();
-  el.adminBadge.classList.toggle("hidden", !a);
-  el.adminPanel.classList.toggle("hidden", !a);
-  el.adminPanelTitle.classList.toggle("hidden", !a);
+  if (el.adminBadge) el.adminBadge.classList.toggle("hidden", !a);
+  if (el.adminPanel) el.adminPanel.classList.toggle("hidden", !a);
+  if (el.adminPanelTitle) el.adminPanelTitle.classList.toggle("hidden", !a);
 }
 
-const updateMyPfp = () => { el.myPfpBtn.src = state.me.pfp || defaultPfp(state.me.username); };
+const updateMyPfp = () => { if (el.myPfpBtn && state.me) el.myPfpBtn.src = state.me.pfp || defaultPfp(state.me.username); };
 
 function showLobby() {
   try { closeDm(); } catch (e) { console.warn("closeDm error:", e); }
-  el.lobbyView.classList.remove("hidden");
-  el.roomView.classList.add("hidden");
-  el.backToLobbyBtn.classList.add("hidden");
+  if (el.lobbyView) el.lobbyView.classList.remove("hidden");
+  if (el.roomView) el.roomView.classList.add("hidden");
+  if (el.backToLobbyBtn) el.backToLobbyBtn.classList.add("hidden");
   setStatus(false);
 }
 
 function showRoom() {
-  el.lobbyView.classList.add("hidden");
-  el.roomView.classList.remove("hidden");
-  el.backToLobbyBtn.classList.remove("hidden");
+  if (el.lobbyView) el.lobbyView.classList.add("hidden");
+  if (el.roomView) el.roomView.classList.remove("hidden");
+  if (el.backToLobbyBtn) el.backToLobbyBtn.classList.remove("hidden");
   setStatus(true);
 }
 
 function setReply(target) {
   state.reply = target;
+  if (!el.replyBar) return;
   if (target) {
     el.replyBarName.textContent = target.username;
     el.replyBarPreview.textContent = target.previewText || "";
@@ -348,6 +362,7 @@ function setReply(target) {
 
 function setDmReply(target) {
   state.dmReply = target;
+  if (!el.dmReplyBar) return;
   if (target) {
     el.dmReplyBarName.textContent = target.username;
     el.dmReplyBarPreview.textContent = target.previewText || "";
@@ -359,6 +374,7 @@ const clearReply = () => setReply(null);
 const clearDmReply = () => setDmReply(null);
 
 function buildPresetGrid() {
+  if (!el.presetGrid) return;
   el.presetGrid.innerHTML = "";
   for (const [name, colors] of Object.entries(PRESETS)) {
     const btn = document.createElement("button");
@@ -378,6 +394,7 @@ function buildPresetGrid() {
 }
 
 function buildColorGrid() {
+  if (!el.colorGrid) return;
   el.colorGrid.innerHTML = "";
   for (const { key, label } of COLOR_VARS) {
     const current = appearance[key] || "";
@@ -423,20 +440,19 @@ function generateVarsTemplate() {
   return lines.join("\n");
 }
 
-// ---------- Auth ----------
-el.tabLogin.addEventListener("click", () => {
+on(el.tabLogin, "click", () => {
   el.tabLogin.classList.add("active"); el.tabSignup.classList.remove("active");
   el.loginForm.classList.remove("hidden"); el.signupForm.classList.add("hidden");
   el.authError.textContent = "";
 });
 
-el.tabSignup.addEventListener("click", () => {
+on(el.tabSignup, "click", () => {
   el.tabSignup.classList.add("active"); el.tabLogin.classList.remove("active");
   el.signupForm.classList.remove("hidden"); el.loginForm.classList.add("hidden");
   el.authError.textContent = "";
 });
 
-el.loginBtn.addEventListener("click", async () => {
+on(el.loginBtn, "click", async () => {
   el.authError.textContent = "";
   const email = el.loginEmail.value.trim(), pass = el.loginPassword.value;
   if (!email || !pass) return el.authError.textContent = "Fill in all fields";
@@ -444,7 +460,7 @@ el.loginBtn.addEventListener("click", async () => {
   catch (e) { el.authError.textContent = e.message.replace("Firebase: ", ""); }
 });
 
-el.signupBtn.addEventListener("click", async () => {
+on(el.signupBtn, "click", async () => {
   el.authError.textContent = "";
   const username = el.signupUsername.value.trim();
   const email = el.signupEmail.value.trim();
@@ -463,7 +479,7 @@ el.signupBtn.addEventListener("click", async () => {
   }
 });
 
-el.logoutBtn2.addEventListener("click", async () => {
+on(el.logoutBtn2, "click", async () => {
   await detachFromRoom();
   await signOut(auth);
 });
@@ -477,8 +493,8 @@ onAuthStateChanged(auth, async (user) => {
     if (state.cleanId) { clearInterval(state.cleanId); state.cleanId = null; }
     if (state.heartbeatId) { clearInterval(state.heartbeatId); state.heartbeatId = null; }
     if (state.lobbyOff) { state.lobbyOff(); state.lobbyOff = null; }
-    el.authScreen.classList.remove("hidden");
-    el.appRoot.classList.add("hidden");
+    if (el.authScreen) el.authScreen.classList.remove("hidden");
+    if (el.appRoot) el.appRoot.classList.add("hidden");
     return;
   }
 
@@ -500,15 +516,15 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   state.me = { uid: user.uid, email: user.email, username: d.username || "user", pfp: d.pfp || "", bio: d.bio || "", createdAt: d.createdAt || null };
-  el.myUsernameLabel.textContent = state.me.username;
+  if (el.myUsernameLabel) el.myUsernameLabel.textContent = state.me.username;
   updateMyPfp();
 
   state.blocked = new Set();
   const bSnap = await get(ref(db, `blocks/${state.me.uid}`));
   Object.keys(bSnap.val() || {}).forEach(uid => state.blocked.add(uid));
 
-  el.authScreen.classList.add("hidden");
-  el.appRoot.classList.remove("hidden");
+  if (el.authScreen) el.authScreen.classList.add("hidden");
+  if (el.appRoot) el.appRoot.classList.remove("hidden");
   showLobby();
 
   await ensurePublicRoom();
@@ -608,14 +624,13 @@ async function cleanStalePresence() {
   } catch (e) { console.warn("Presence clean error:", e); }
 }
 
-// ---------- Lobby ----------
 function startLobbyListener() {
   if (state.lobbyOff) state.lobbyOff();
   state.lobbyOff = onValue(ref(db, "rooms"),
     (snap) => scheduleLobbyRender(snap.val() || {}),
     (err) => {
       console.error(err);
-      el.roomGrid.innerHTML = '<p class="lobby-empty">Could not load rooms.</p>';
+      if (el.roomGrid) el.roomGrid.innerHTML = '<p class="lobby-empty">Could not load rooms.</p>';
     }
   );
 }
@@ -624,11 +639,11 @@ const scheduleLobbyRender = debounce(async (rooms) => {
   const token = ++state.lobbyToken;
   const codes = Object.keys(rooms);
   if (!codes.length) {
-    el.roomGrid.innerHTML = '<p class="lobby-empty">No rooms yet. Create one.</p>';
+    if (el.roomGrid) el.roomGrid.innerHTML = '<p class="lobby-empty">No rooms yet. Create one.</p>';
     state.roomCards.clear();
     return;
   }
-  el.roomGrid.querySelector(".lobby-empty")?.remove();
+  if (el.roomGrid) el.roomGrid.querySelector(".lobby-empty")?.remove();
 
   const counts = {};
   await Promise.all(codes.map(async (c) => { counts[c] = await getPresenceCount(c); }));
@@ -650,7 +665,7 @@ const scheduleLobbyRender = debounce(async (rooms) => {
       card.className = "room-card";
       card.dataset.code = code;
       state.roomCards.set(code, card);
-      el.roomGrid.appendChild(card);
+      if (el.roomGrid) el.roomGrid.appendChild(card);
     }
     const max = r.maxUsers || 50;
     const iconParts = [];
@@ -673,16 +688,16 @@ const scheduleLobbyRender = debounce(async (rooms) => {
   }
   for (const code of codes) {
     const card = state.roomCards.get(code);
-    if (card) el.roomGrid.appendChild(card);
+    if (card && el.roomGrid) el.roomGrid.appendChild(card);
   }
 }, 60);
 
-el.roomGrid.addEventListener("click", (e) => {
+on(el.roomGrid, "click", (e) => {
   const card = e.target.closest(".room-card");
   if (card?.dataset.code) requestJoinRoom(card.dataset.code);
 });
 
-el.openCreateRoomBtn.addEventListener("click", () => {
+on(el.openCreateRoomBtn, "click", () => {
   el.createRoomCodeInput.value = "";
   el.createRoomName.value = "";
   el.createRoomMax.value = "20";
@@ -712,7 +727,7 @@ async function requestJoinRoom(code) {
   await enterRoom(code, room);
 }
 
-el.createRoomBtn.addEventListener("click", async () => {
+on(el.createRoomBtn, "click", async () => {
   const code = el.createRoomCodeInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
   const name = el.createRoomName.value.trim() || code;
   const max = parseInt(el.createRoomMax.value, 10) || 20;
@@ -736,9 +751,9 @@ el.createRoomBtn.addEventListener("click", async () => {
   } catch (e) { el.createRoomError.textContent = e.message; }
 });
 
-el.cancelCreateRoomBtn.addEventListener("click", () => el.createRoomModal.classList.add("hidden"));
+on(el.cancelCreateRoomBtn, "click", () => el.createRoomModal.classList.add("hidden"));
 
-el.submitPasswordBtn.addEventListener("click", async () => {
+on(el.submitPasswordBtn, "click", async () => {
   const code = el.passwordRoomCode.textContent;
   const pw = el.joinRoomPassword.value;
   el.passwordError.textContent = "";
@@ -754,7 +769,7 @@ el.submitPasswordBtn.addEventListener("click", async () => {
   await enterRoom(code, room);
 });
 
-el.cancelPasswordBtn.addEventListener("click", () => el.passwordModal.classList.add("hidden"));
+on(el.cancelPasswordBtn, "click", () => el.passwordModal.classList.add("hidden"));
 
 async function enterRoom(code, roomMeta) {
   await detachFromRoom();
@@ -766,13 +781,12 @@ async function enterRoom(code, roomMeta) {
   resetChatUI();
   showRoom();
   updateAdminUI();
-  el.chatHeadTitle.textContent = "# " + (roomMeta.name || code);
-  el.chatHeadLock.classList.toggle("hidden", !roomMeta.hasPassword);
-  el.chatHeadPublic.classList.toggle("hidden", !(roomMeta.isPublic || code === PUBLIC_ROOM));
+  if (el.chatHeadTitle) el.chatHeadTitle.textContent = "# " + (roomMeta.name || code);
+  if (el.chatHeadLock) el.chatHeadLock.classList.toggle("hidden", !roomMeta.hasPassword);
+  if (el.chatHeadPublic) el.chatHeadPublic.classList.toggle("hidden", !(roomMeta.isPublic || code === PUBLIC_ROOM));
   try { update(ref(db, `rooms/${code}`), { lastActivity: Date.now() }); } catch {}
-  el.capacityLabel.textContent = "/ " + (roomMeta.maxUsers || 50);
+  if (el.capacityLabel) el.capacityLabel.textContent = "/ " + (roomMeta.maxUsers || 50);
 
-  // Pre-load existing messages before attaching the live listener
   try {
     const initialSnap = await get(state.queryRef);
     const initialData = initialSnap.val() || {};
@@ -796,7 +810,6 @@ async function enterRoom(code, roomMeta) {
   onChildAdded(state.queryRef, handler);
   state.groupOff = () => off(state.queryRef, "child_added", handler);
 
-  // Presence + heartbeat
   state.presenceRef = ref(db, `chats/${code}/presence/${state.me.uid}`);
   await set(state.presenceRef, { username: state.me.username, joinedAt: serverTimestamp() });
   await set(ref(db, `chats/${code}/seen/${state.me.uid}`), {
@@ -864,14 +877,13 @@ async function detachFromRoom() {
   updateAdminUI();
 }
 
-el.backToLobbyBtn.addEventListener("click", async () => {
+on(el.backToLobbyBtn, "click", async () => {
   try { closeDm(); } catch (e) { console.warn(e); }
   await detachFromRoom();
   resetChatUI();
   showLobby();
 });
 
-// ---------- Notifications ----------
 function startNotificationListener() {
   if (state.notifOff) state.notifOff();
   state.notifOff = onValue(ref(db, `notifications/${state.me.uid}`), (snap) => {
@@ -884,6 +896,7 @@ function startNotificationListener() {
 }
 
 function renderNotifications() {
+  if (!el.notifBadge || !el.notifList) return;
   if (state.unread > 0) {
     el.notifBadge.textContent = state.unread > 99 ? "99+" : String(state.unread);
     el.notifBadge.classList.remove("hidden");
@@ -907,7 +920,7 @@ function renderNotifications() {
   el.notifList.appendChild(frag);
 }
 
-el.notifList.addEventListener("click", async (e) => {
+on(el.notifList, "click", async (e) => {
   const item = e.target.closest(".notif-item");
   if (!item) return;
   const id = item.dataset.notifId;
@@ -926,12 +939,13 @@ el.notifList.addEventListener("click", async (e) => {
   }
 });
 
-el.notifBtn.addEventListener("click", (e) => {
+on(el.notifBtn, "click", (e) => {
   e.stopPropagation();
   el.notifDropdown.classList.toggle("hidden");
 });
 
-document.addEventListener("click", (e) => {
+on(document, "click", (e) => {
+  if (!el.notifDropdown) return;
   if (!el.notifDropdown.classList.contains("hidden") &&
       !el.notifDropdown.contains(e.target) &&
       !el.notifBtn.contains(e.target)) {
@@ -939,7 +953,7 @@ document.addEventListener("click", (e) => {
   }
 });
 
-el.markAllReadBtn.addEventListener("click", async () => {
+on(el.markAllReadBtn, "click", async () => {
   const updates = {};
   for (const n of state.notifications) {
     if (!n.read) updates[`${n.id}/read`] = true;
@@ -960,7 +974,6 @@ async function pushNotification(targetUid, payload) {
 
 const extractMentions = text => [...new Set([...text.matchAll(/@([A-Za-z0-9_]+)/g)].map(m => m[1].toLowerCase()))];
 
-// ---------- Render message ----------
 async function renderMessage(container, msgId, msg, isOwn, isDm) {
   const isBot = msg.uid === BOT_UID || msg.bot === true;
   const sender = isBot ? await fetchUser(BOT_UID) : await fetchUser(msg.uid);
@@ -1142,45 +1155,70 @@ function buildLineContent(lineEl, plainText) {
   if (lastIndex < plainText.length) renderText(lineEl, plainText.slice(lastIndex));
 }
 
-// ---------- Sidebar ----------
 async function renderUserList() {
-  const onlineMap = new Map();
+  if (!el.userList || !el.offlineList) return;
+
+  const users = new Map();
+
+  const addUser = (uid, username, online) => {
+    if (!uid || uid === "undefined" || uid === "null") return;
+    if (uid === state.me?.uid) return;
+    const existing = users.get(uid);
+    if (!existing || (online && !existing.online)) {
+      users.set(uid, { uid, username: username || "user", online });
+    }
+  };
+
   for (const [uid, p] of Object.entries(state.presenceData || {})) {
-    if (!uid || uid === "undefined") continue;
-    onlineMap.set(uid, { uid, username: p?.username || "" });
+    if (p && typeof p === "object") addUser(uid, p.username, true);
   }
-
-  const offlineMap = new Map();
   for (const [uid, s] of Object.entries(state.seenData || {})) {
-    if (!uid || uid === "undefined") continue;
-    if (uid === state.me.uid) continue;
-    if (onlineMap.has(uid)) continue;
-    offlineMap.set(uid, { uid, username: s?.username || "" });
+    if (s && typeof s === "object") addUser(uid, s.username, false);
   }
 
-  const onlineUids = [...onlineMap.keys()].sort((a, b) => {
-    if (a === state.me.uid) return -1;
-    if (b === state.me.uid) return 1;
-    return (onlineMap.get(a).username || "").toLowerCase()
-      .localeCompare((onlineMap.get(b).username || "").toLowerCase());
-  });
+  const byName = new Map();
+  for (const u of users.values()) {
+    const key = (u.username || "").toLowerCase();
+    const existing = byName.get(key);
+    if (!existing || (u.online && !existing.online)) {
+      byName.set(key, u);
+    }
+  }
 
-  const offlineUids = [...offlineMap.keys()].sort((a, b) =>
-    (offlineMap.get(a).username || "").toLowerCase()
-      .localeCompare((offlineMap.get(b).username || "").toLowerCase())
+  const onlineList = [];
+  const offlineList = [];
+
+  if (state.me) {
+    onlineList.push({ uid: state.me.uid, username: state.me.username, isSelf: true });
+  }
+
+  for (const u of byName.values()) {
+    if (u.online) onlineList.push(u);
+    else offlineList.push(u);
+  }
+
+  onlineList.sort((a, b) => {
+    if (a.isSelf) return -1;
+    if (b.isSelf) return 1;
+    return (a.username || "").toLowerCase().localeCompare((b.username || "").toLowerCase());
+  });
+  offlineList.sort((a, b) =>
+    (a.username || "").toLowerCase().localeCompare((b.username || "").toLowerCase())
   );
 
-  el.onlineCount.textContent = onlineUids.length;
-  el.offlineCount.textContent = offlineUids.length;
+  if (el.onlineCount) el.onlineCount.textContent = onlineList.length;
+  if (el.offlineCount) el.offlineCount.textContent = offlineList.length;
 
   el.userList.innerHTML = "";
   const frag = document.createDocumentFragment();
-  for (const uid of onlineUids) {
-    const p = await fetchUser(uid);
+  for (const u of onlineList) {
+    const p = u.isSelf
+      ? { uid: u.uid, username: state.me.username, pfp: state.me.pfp }
+      : await fetchUser(u.uid);
     const row = document.createElement("div");
-    row.className = "user-item" + (state.blocked.has(uid) ? " blocked" : "");
-    row.dataset.uid = uid;
-    const name = p.username + (uid === state.me.uid ? " (you)" : "");
+    row.className = "user-item" + (state.blocked.has(u.uid) ? " blocked" : "");
+    row.dataset.uid = u.uid;
+    const name = (p.username || u.username) + (u.isSelf ? " (you)" : "");
     row.innerHTML = `<img src="${p.pfp || defaultPfp(p.username)}" alt=""><span class="u-name">${esc(name)}</span>`;
     frag.appendChild(row);
   }
@@ -1188,27 +1226,26 @@ async function renderUserList() {
 
   el.offlineList.innerHTML = "";
   const frag2 = document.createDocumentFragment();
-  for (const uid of offlineUids) {
-    const p = await fetchUser(uid);
+  for (const u of offlineList) {
+    const p = await fetchUser(u.uid);
     const row = document.createElement("div");
-    row.className = "user-item offline" + (state.blocked.has(uid) ? " blocked" : "");
-    row.dataset.uid = uid;
-    row.innerHTML = `<img src="${p.pfp || defaultPfp(p.username)}" alt=""><span class="u-name">${esc(p.username)}</span>`;
+    row.className = "user-item offline" + (state.blocked.has(u.uid) ? " blocked" : "");
+    row.dataset.uid = u.uid;
+    row.innerHTML = `<img src="${p.pfp || defaultPfp(p.username)}" alt=""><span class="u-name">${esc(p.username || u.username)}</span>`;
     frag2.appendChild(row);
   }
   el.offlineList.appendChild(frag2);
 }
 
-el.userList.addEventListener("click", (e) => {
+on(el.userList, "click", (e) => {
   const row = e.target.closest(".user-item");
   if (row?.dataset.uid && row.dataset.uid !== state.me.uid) openUserModal(row.dataset.uid);
 });
-el.offlineList.addEventListener("click", (e) => {
+on(el.offlineList, "click", (e) => {
   const row = e.target.closest(".user-item");
   if (row?.dataset.uid && row.dataset.uid !== state.me.uid) openUserModal(row.dataset.uid);
 });
 
-// ---------- User modal ----------
 let modalUid = null;
 
 async function openUserModal(uid) {
@@ -1222,16 +1259,16 @@ async function openUserModal(uid) {
   el.userModal.classList.remove("hidden");
 }
 
-el.modalCloseBtn.addEventListener("click", () => { el.userModal.classList.add("hidden"); modalUid = null; });
+on(el.modalCloseBtn, "click", () => { el.userModal.classList.add("hidden"); modalUid = null; });
 
-el.modalDmBtn.addEventListener("click", () => {
+on(el.modalDmBtn, "click", () => {
   if (!modalUid) return;
   el.userModal.classList.add("hidden");
   openDm(modalUid);
   modalUid = null;
 });
 
-el.modalBlockBtn.addEventListener("click", async () => {
+on(el.modalBlockBtn, "click", async () => {
   if (!modalUid) return;
   const uid = modalUid;
   if (state.blocked.has(uid)) {
@@ -1249,7 +1286,7 @@ el.modalBlockBtn.addEventListener("click", async () => {
   if (!state.dmUid && state.roomCode) await reattachGroupListener();
 });
 
-el.modalKickBtn.addEventListener("click", async () => {
+on(el.modalKickBtn, "click", async () => {
   if (!modalUid || !isAdmin() || state.roomMeta?.isPublic) return;
   const uid = modalUid;
   try {
@@ -1261,7 +1298,7 @@ el.modalKickBtn.addEventListener("click", async () => {
   modalUid = null;
 });
 
-el.kickPanelBtn.addEventListener("click", async () => {
+on(el.kickPanelBtn, "click", async () => {
   el.kickedList.innerHTML = "";
   const snap = await get(ref(db, `rooms/${state.roomCode}/kicked`));
   const uids = Object.keys(snap.val() || {});
@@ -1288,9 +1325,9 @@ el.kickPanelBtn.addEventListener("click", async () => {
   el.kickedModal.classList.remove("hidden");
 });
 
-el.closeKickedBtn.addEventListener("click", () => el.kickedModal.classList.add("hidden"));
+on(el.closeKickedBtn, "click", () => el.kickedModal.classList.add("hidden"));
 
-el.roomSettingsBtn.addEventListener("click", () => {
+on(el.roomSettingsBtn, "click", () => {
   el.settingsRoomName.value = state.roomMeta?.name || "";
   el.settingsRoomMax.value = state.roomMeta?.maxUsers || 20;
   el.settingsRoomPassword.value = "";
@@ -1299,9 +1336,9 @@ el.roomSettingsBtn.addEventListener("click", () => {
   el.roomSettingsModal.classList.remove("hidden");
 });
 
-el.cancelRoomSettingsBtn.addEventListener("click", () => el.roomSettingsModal.classList.add("hidden"));
+on(el.cancelRoomSettingsBtn, "click", () => el.roomSettingsModal.classList.add("hidden"));
 
-el.saveRoomSettingsBtn.addEventListener("click", async () => {
+on(el.saveRoomSettingsBtn, "click", async () => {
   if (!isAdmin()) return;
   el.roomSettingsError.textContent = "";
   const name = el.settingsRoomName.value.trim();
@@ -1322,7 +1359,7 @@ el.saveRoomSettingsBtn.addEventListener("click", async () => {
   } catch (e) { el.roomSettingsError.textContent = e.message; }
 });
 
-el.deleteRoomBtn.addEventListener("click", async () => {
+on(el.deleteRoomBtn, "click", async () => {
   if (!isAdmin() || state.roomMeta?.isPublic || state.roomCode === PUBLIC_ROOM) return;
   if (!confirm(t("deleteRoomConfirm"))) return;
   const code = state.roomCode;
@@ -1338,7 +1375,6 @@ el.deleteRoomBtn.addEventListener("click", async () => {
   } catch (e) { showToast("Could not delete: " + e.message); }
 });
 
-// ---------- DMs ----------
 async function openDm(otherUid) {
   if (!state.roomCode) await requestJoinRoom(PUBLIC_ROOM);
   if (state.dmUid === otherUid && !el.dmPanel.classList.contains("hidden")) return;
@@ -1356,7 +1392,6 @@ async function openDm(otherUid) {
   const other = await fetchUser(otherUid);
   el.dmHeadTitle.textContent = "DM with " + other.username;
 
-  // Pre-load existing DM messages, then listen for new
   try {
     const snap = await get(state.dmQueryRef);
     const data = snap.val() || {};
@@ -1386,14 +1421,14 @@ function closeDm() {
   state.dmUid = null;
   state.dmQueryRef = null;
   try { if (typeof state.dmOff === "function") { state.dmOff(); state.dmOff = null; } } catch (e) { console.warn("dmOff error", e); }
-  el.dmPanel.classList.add("hidden");
-  el.dmInput.disabled = true;
-  el.dmFileInput.disabled = true;
-  el.dmSendBtn.disabled = true;
+  if (el.dmPanel) el.dmPanel.classList.add("hidden");
+  if (el.dmInput) el.dmInput.disabled = true;
+  if (el.dmFileInput) el.dmFileInput.disabled = true;
+  if (el.dmSendBtn) el.dmSendBtn.disabled = true;
   resetDmUI();
 }
 
-el.dmCloseBtn.addEventListener("click", () => {
+on(el.dmCloseBtn, "click", () => {
   closeDm();
 });
 
@@ -1413,18 +1448,17 @@ async function reattachGroupListener() {
   state.groupOff = () => off(state.queryRef, "child_added", handler);
 }
 
-// ---------- Send ----------
-el.sendBtn.addEventListener("click", sendMessage);
-el.messageInput.addEventListener("keydown", (e) => {
+on(el.sendBtn, "click", sendMessage);
+on(el.messageInput, "keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
-el.replyBarCancel.addEventListener("click", clearReply);
+on(el.replyBarCancel, "click", clearReply);
 
-el.dmSendBtn.addEventListener("click", sendDm);
-el.dmInput.addEventListener("keydown", (e) => {
+on(el.dmSendBtn, "click", sendDm);
+on(el.dmInput, "keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDm(); }
 });
-el.dmReplyBarCancel.addEventListener("click", clearDmReply);
+on(el.dmReplyBarCancel, "click", clearDmReply);
 
 async function sendMessage() {
   if (!state.roomCode || !state.roomRef) return showToast("Join a room first");
@@ -1518,10 +1552,10 @@ async function sendDm() {
   el.dmInput.focus();
 }
 
-el.fileInput.addEventListener("change", (e) => handleFileSelect(e, false));
-el.dmFileInput.addEventListener("change", (e) => handleFileSelect(e, true));
-el.filePreviewRemove.addEventListener("click", () => clearPendingFile());
-el.dmFilePreviewRemove.addEventListener("click", () => clearDmPendingFile());
+on(el.fileInput, "change", (e) => handleFileSelect(e, false));
+on(el.dmFileInput, "change", (e) => handleFileSelect(e, true));
+on(el.filePreviewRemove, "click", () => clearPendingFile());
+on(el.dmFilePreviewRemove, "click", () => clearDmPendingFile());
 
 function handleFileSelect(e, isDm) {
   const file = e.target.files[0];
@@ -1563,23 +1597,22 @@ function handleFileSelect(e, isDm) {
 function clearPendingFile() {
   if (state.pendingFile?.objectUrl) URL.revokeObjectURL(state.pendingFile.objectUrl);
   state.pendingFile = null;
-  el.fileInput.value = "";
-  el.filePreview.classList.add("hidden");
-  el.filePreviewImg.src = "";
-  el.filePreviewVideo.src = "";
+  if (el.fileInput) el.fileInput.value = "";
+  if (el.filePreview) el.filePreview.classList.add("hidden");
+  if (el.filePreviewImg) el.filePreviewImg.src = "";
+  if (el.filePreviewVideo) el.filePreviewVideo.src = "";
 }
 
 function clearDmPendingFile() {
   if (state.dmPendingFile?.objectUrl) URL.revokeObjectURL(state.dmPendingFile.objectUrl);
   state.dmPendingFile = null;
-  el.dmFileInput.value = "";
-  el.dmFilePreview.classList.add("hidden");
-  el.dmFilePreviewImg.src = "";
-  el.dmFilePreviewVideo.src = "";
+  if (el.dmFileInput) el.dmFileInput.value = "";
+  if (el.dmFilePreview) el.dmFilePreview.classList.add("hidden");
+  if (el.dmFilePreviewImg) el.dmFilePreviewImg.src = "";
+  if (el.dmFilePreviewVideo) el.dmFilePreviewVideo.src = "";
 }
 
-// ---------- Profile ----------
-el.profileBtn.addEventListener("click", () => {
+on(el.profileBtn, "click", () => {
   el.editUsername.value = state.me.username;
   el.editBio.value = state.me.bio;
   el.editPfp.value = "";
@@ -1592,7 +1625,7 @@ el.profileBtn.addEventListener("click", () => {
   el.profileModal.classList.remove("hidden");
 });
 
-el.editPfp.addEventListener("change", (e) => {
+on(el.editPfp, "change", (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
@@ -1600,9 +1633,9 @@ el.editPfp.addEventListener("change", (e) => {
   r.readAsDataURL(f);
 });
 
-el.cancelProfileBtn.addEventListener("click", () => el.profileModal.classList.add("hidden"));
+on(el.cancelProfileBtn, "click", () => el.profileModal.classList.add("hidden"));
 
-el.saveProfileBtn.addEventListener("click", async () => {
+on(el.saveProfileBtn, "click", async () => {
   el.profileError.textContent = "";
   const newName = el.editUsername.value.trim();
   if (newName.length < 2 || newName.length > 24) return el.profileError.textContent = "Username must be 2–24 chars";
@@ -1630,8 +1663,7 @@ el.saveProfileBtn.addEventListener("click", async () => {
   } catch (e) { el.profileError.textContent = e.message; }
 });
 
-// ---------- Settings ----------
-el.settingsBtn.addEventListener("click", () => {
+on(el.settingsBtn, "click", () => {
   el.themeSelect.value = currentTheme;
   el.languageSelect.value = currentLang;
   el.currentPassword.value = "";
@@ -1647,13 +1679,13 @@ document.querySelectorAll(".settings-tab").forEach(tab => {
     document.querySelectorAll(".settings-tab").forEach(x => x.classList.remove("active"));
     tab.classList.add("active");
     const target = tab.dataset.tab;
-    $("paneAccount").classList.toggle("hidden", target !== "account");
-    $("paneAppearance").classList.toggle("hidden", target !== "appearance");
-    $("paneDanger").classList.toggle("hidden", target !== "danger");
+    $("paneAccount")?.classList.toggle("hidden", target !== "account");
+    $("paneAppearance")?.classList.toggle("hidden", target !== "appearance");
+    $("paneDanger")?.classList.toggle("hidden", target !== "danger");
   });
 });
 
-el.themeSelect.addEventListener("change", () => {
+on(el.themeSelect, "change", () => {
   currentTheme = el.themeSelect.value;
   localStorage.setItem("theme", currentTheme);
   applyTheme();
@@ -1663,13 +1695,13 @@ el.themeSelect.addEventListener("change", () => {
   buildColorGrid();
 });
 
-el.languageSelect.addEventListener("change", () => {
+on(el.languageSelect, "change", () => {
   currentLang = el.languageSelect.value;
   localStorage.setItem("lang", currentLang);
   applyTranslations();
 });
 
-el.changePasswordBtn.addEventListener("click", async () => {
+on(el.changePasswordBtn, "click", async () => {
   el.settingsError.textContent = "";
   const cur = el.currentPassword.value, nw = el.newPassword.value;
   if (!cur || !nw) return el.settingsError.textContent = "Fill in both password fields";
@@ -1683,20 +1715,20 @@ el.changePasswordBtn.addEventListener("click", async () => {
   } catch (e) { el.settingsError.textContent = e.message.replace("Firebase: ", ""); }
 });
 
-el.closeSettingsBtn.addEventListener("click", () => el.settingsModal.classList.add("hidden"));
+on(el.closeSettingsBtn, "click", () => el.settingsModal.classList.add("hidden"));
 
-el.openAdvancedCssBtn.addEventListener("click", () => {
+on(el.openAdvancedCssBtn, "click", () => {
   el.customCssInput.value = customCss;
   el.advancedCssModal.classList.remove("hidden");
 });
 
-el.insertVarsBtn.addEventListener("click", () => {
+on(el.insertVarsBtn, "click", () => {
   const template = generateVarsTemplate();
   const cur = el.customCssInput.value;
   el.customCssInput.value = cur ? cur + "\n\n" + template : template;
 });
 
-el.saveCustomCssBtn.addEventListener("click", () => {
+on(el.saveCustomCssBtn, "click", () => {
   customCss = el.customCssInput.value;
   saveCustomCss();
   applyAppearance();
@@ -1704,10 +1736,10 @@ el.saveCustomCssBtn.addEventListener("click", () => {
   showToast("Custom CSS saved");
 });
 
-el.cancelCustomCssBtn.addEventListener("click", () => el.advancedCssModal.classList.add("hidden"));
-el.clearCustomCssBtn.addEventListener("click", () => { el.customCssInput.value = ""; });
+on(el.cancelCustomCssBtn, "click", () => el.advancedCssModal.classList.add("hidden"));
+on(el.clearCustomCssBtn, "click", () => { el.customCssInput.value = ""; });
 
-el.resetAppearanceBtn.addEventListener("click", () => {
+on(el.resetAppearanceBtn, "click", () => {
   appearance = {};
   customCss = "";
   saveAppearance();
@@ -1718,14 +1750,17 @@ el.resetAppearanceBtn.addEventListener("click", () => {
   showToast(t("appearanceReset"));
 });
 
-// ---------- Boot ----------
-applyTheme();
-applyTranslations();
-applyAppearance();
-el.themeSelect.value = currentTheme;
-el.languageSelect.value = currentLang;
-setStatus(false);
-resetChatUI();
-resetDmUI();
-buildPresetGrid();
-buildColorGrid();
+try {
+  applyTheme();
+  applyTranslations();
+  applyAppearance();
+  if (el.themeSelect) el.themeSelect.value = currentTheme;
+  if (el.languageSelect) el.languageSelect.value = currentLang;
+  setStatus(false);
+  resetChatUI();
+  resetDmUI();
+  buildPresetGrid();
+  buildColorGrid();
+} catch (e) {
+  console.error("Boot error:", e);
+}
