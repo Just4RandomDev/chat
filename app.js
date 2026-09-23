@@ -128,18 +128,21 @@ let appearance = JSON.parse(localStorage.getItem("appearance") || "{}");
 let customCss = localStorage.getItem("customCss") || "";
 
 function applyAppearance() {
-  const root = document.documentElement;
+  const lines = [":root {"];
   for (const [k, v] of Object.entries(appearance)) {
-    if (v) root.style.setProperty(`--${k}`, v);
-    else root.style.removeProperty(`--${k}`);
+    if (v) lines.push(`  --${k}: ${v};`);
   }
+  lines.push("}");
+  const varsBlock = lines.join("\n");
+  const combined = varsBlock + "\n\n" + customCss;
+
   let cssTag = document.getElementById("custom-css");
   if (!cssTag) {
     cssTag = document.createElement("style");
     cssTag.id = "custom-css";
     document.head.appendChild(cssTag);
   }
-  cssTag.textContent = customCss;
+  cssTag.textContent = combined;
 }
 
 const saveAppearance = () => localStorage.setItem("appearance", JSON.stringify(appearance));
