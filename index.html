@@ -67,10 +67,14 @@
 <span data-i18n="offline">Offline</span> — <span id="offlineCount">0</span>
 </div>
 <div class="user-list" id="offlineList"></div>
-<div class="side-title hidden" id="adminPanelTitle" data-i18n="admin">Admin</div>
+
+<div class="side-title hidden" id="adminPanelTitle">Moderator Tools</div>
 <div class="side-admin hidden" id="adminPanel">
-<button id="kickPanelBtn" data-i18n="manageKicked">Manage Kicked</button>
-<button id="roomSettingsBtn" data-i18n="roomSettings">Room Settings</button>
+<button id="kickPanelBtn">Manage Kicked</button>
+<button id="roomSettingsBtn">Room Settings</button>
+<button id="togglePinBtn">Pin / Unpin Room</button>
+<button id="toggleForeverBtn">Toggle Forever</button>
+<button id="wipeRoomBtn" class="danger">Wipe All Messages</button>
 </div>
 </aside>
 
@@ -79,6 +83,7 @@
 <span id="chatHeadTitle"># room</span>
 <span class="head-icon hidden" id="chatHeadLock"></span>
 <span class="head-icon hidden" id="chatHeadPublic"></span>
+<span class="head-icon hidden" id="chatHeadForever"></span>
 <span class="admin-badge hidden" id="adminBadge">ADMIN</span>
 </div>
 
@@ -106,8 +111,9 @@
 <button id="filePreviewRemove">✕</button>
 </div>
 </div>
-<div class="input-row">
-<input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled>
+<div class="input-row" style="position:relative;">
+<input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled autocomplete="off">
+<div class="mention-autocomplete hidden" id="mentionAutocomplete"></div>
 <label class="file-label" id="fileLabel" title="Attach">
 <span class="icon-img" id="paperclipIcon"></span>
 <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
@@ -147,7 +153,7 @@
 </div>
 </div>
 <div class="input-row">
-<input type="text" id="dmInput" placeholder="Type a DM..." disabled>
+<input type="text" id="dmInput" placeholder="Type a DM..." disabled autocomplete="off">
 <label class="file-label" id="dmFileLabel" title="Attach">
 <span class="icon-img" id="dmPaperclipIcon"></span>
 <input type="file" id="dmFileInput" accept="image/*,video/*,image/gif" disabled>
@@ -189,9 +195,10 @@
 </div>
 
 <div class="modal-backdrop hidden" id="profileModal">
-<div class="modal profile-modal">
-<div class="profile-hero">
-<div class="profile-banner" id="profileBanner"></div>
+<div class="modal profile-modal discord-profile">
+<div class="dp-banner" id="profileBanner"></div>
+<div class="dp-body">
+<div class="dp-left">
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="myProfileAvatar" alt="">
 <label class="profile-avatar-edit">
@@ -199,24 +206,45 @@
 <input type="file" id="editPfp" accept="image/*">
 </label>
 </div>
-<div class="profile-hero-name" id="profileHeroName">—</div>
-<div class="profile-hero-email" id="profileHeroEmail">—</div>
-<div class="profile-hero-meta" id="profileHeroMeta"></div>
+<div class="dp-online">
+<span class="dp-status-dot"></span>
+<span data-i18n="online">Online</span>
 </div>
-<h2 data-i18n="editProfile">Edit Profile</h2>
-<label class="field"><span data-i18n="username">Username</span><input type="text" id="editUsername" maxlength="24"></label>
-<label class="field"><span data-i18n="bio">Bio</span><textarea id="editBio" rows="3" maxlength="200"></textarea></label>
-<label class="field"><span data-i18n="nameColor">Name Color</span>
+</div>
+<div class="dp-right">
+<div class="dp-header">
+<div class="dp-username" id="profileHeroName">—</div>
+<div class="dp-discrim" id="profileHeroEmail">—</div>
+</div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="bio">Bio</div>
+<textarea id="editBio" rows="3" maxlength="200" class="dp-bio-edit" placeholder="Tell us about yourself..."></textarea>
+</div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="username">Username</div>
+<input type="text" id="editUsername" maxlength="24" class="dp-input">
+</div>
+<div class="dp-row">
+<div class="dp-section dp-section-half">
+<div class="dp-label" data-i18n="nameColor">Name Color</div>
 <input type="color" id="editNameColor" class="color-input">
-</label>
-<label class="field"><span data-i18n="accentColor">Accent Color</span>
+</div>
+<div class="dp-section dp-section-half">
+<div class="dp-label" data-i18n="accentColor">Accent Color</div>
 <input type="color" id="editAccentColor" class="color-input">
-</label>
+</div>
+</div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="memberSince">Member Since</div>
+<div id="profileHeroMeta" class="dp-member-since">—</div>
+</div>
 <div class="modal-actions">
 <button id="saveProfileBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelProfileBtn" data-i18n="cancel">Cancel</button>
 </div>
 <p class="auth-error" id="profileError"></p>
+</div>
+</div>
 </div>
 </div>
 
@@ -227,7 +255,8 @@
 <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="createRoomName" placeholder="My Lobby" maxlength="40"></label>
 <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="createRoomMax" min="2" max="500" value="20"></label>
 <label class="field"><span data-i18n="passwordOptional">Password (optional)</span><input type="password" id="createRoomPassword" placeholder="Leave empty for no password"></label>
-<label class="field check-row"><input type="checkbox" id="createRoomPinned"><span data-i18n="pinRoom">Pin this room</span></label>
+<label class="field check-row"><input type="checkbox" id="createRoomPinned"><span class="toggle-label" data-i18n="pinRoom">Pin this room</span></label>
+<label class="field check-row"><input type="checkbox" id="createRoomForever"><span class="toggle-label" data-i18n="foreverRoom">Forever room (never auto-deletes)</span></label>
 <div class="modal-actions">
 <button id="createRoomBtn" data-i18n="create">Create</button>
 <button class="ghost" id="cancelCreateRoomBtn" data-i18n="cancel">Cancel</button>
@@ -263,7 +292,8 @@
 <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="settingsRoomName" maxlength="40"></label>
 <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="settingsRoomMax" min="2" max="500"></label>
 <label class="field"><span data-i18n="changePasswordKeep">Change password (leave empty to keep)</span><input type="password" id="settingsRoomPassword" placeholder="New password"></label>
-<label class="field check-row"><input type="checkbox" id="settingsRoomPinned"><span data-i18n="pinRoom">Pin this room</span></label>
+<label class="field check-row"><input type="checkbox" id="settingsRoomPinned"><span class="toggle-label" data-i18n="pinRoom">Pin this room</span></label>
+<label class="field check-row"><input type="checkbox" id="settingsRoomForever"><span class="toggle-label" data-i18n="foreverRoom">Forever room (never auto-deletes)</span></label>
 <div class="modal-actions">
 <button id="saveRoomSettingsBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelRoomSettingsBtn" data-i18n="cancel">Cancel</button>
@@ -284,12 +314,6 @@
 </div>
 <div class="settings-pane" id="paneAccount">
 <h3 class="settings-sub" data-i18n="account">Account</h3>
-<label class="field"><span data-i18n="theme">Theme</span>
-<select id="themeSelect">
-<option value="dark" data-i18n="dark">Dark</option>
-<option value="light" data-i18n="light">Light</option>
-</select>
-</label>
 <label class="field"><span data-i18n="language">Language</span>
 <select id="languageSelect">
 <option value="en">English</option><option value="es">Español</option>
@@ -304,6 +328,14 @@
 <p class="auth-error" id="settingsError"></p>
 </div>
 <div class="settings-pane hidden" id="paneAppearance">
+<h3 class="settings-sub" data-i18n="theme">Theme</h3>
+<label class="field">
+<select id="themeSelect">
+<option value="dark" data-i18n="dark">Dark</option>
+<option value="light" data-i18n="light">Light</option>
+</select>
+</label>
+<hr class="settings-divider">
 <h3 class="settings-sub" data-i18n="presets">Presets</h3>
 <div class="preset-grid" id="presetGrid"></div>
 <hr class="settings-divider">
@@ -333,28 +365,23 @@
 <div class="modal-backdrop hidden" id="advancedCssModal">
 <div class="modal css-wide">
 <h2 data-i18n="customCssTitle">Custom CSS</h2>
-
 <div class="settings-tabs">
 <button class="settings-tab active" data-custom-tab="css">CSS</button>
 <button class="settings-tab" data-custom-tab="html">HTML</button>
 <button class="settings-tab" data-custom-tab="js">JS</button>
 </div>
-
 <div class="custom-pane" id="customPaneCss">
 <p class="settings-hint" data-i18n="customCssHint">Anything you write here is injected after all other styles. Applies only to your browser.</p>
 <textarea id="customCssInput" spellcheck="false" rows="18"></textarea>
 </div>
-
 <div class="custom-pane hidden" id="customPaneHtml">
-<p class="settings-hint">Injected into the bottom of the page. Use for &lt;video&gt;, &lt;canvas&gt;, extra &lt;div&gt;s.</p>
+<p class="settings-hint">Injected into the bottom of the page.</p>
 <textarea id="customHtmlInput" spellcheck="false" rows="18"></textarea>
 </div>
-
 <div class="custom-pane hidden" id="customPaneJs">
-<p class="settings-hint">Runs on every load. Errors are caught and won't break the app. Runs after the page is ready.</p>
+<p class="settings-hint">Runs on every load.</p>
 <textarea id="customJsInput" spellcheck="false" rows="18"></textarea>
 </div>
-
 <div class="modal-actions">
 <button id="insertVarsBtn" data-i18n="insertVars">Insert All Variables</button>
 <button id="saveCustomCssBtn" data-i18n="save">Save</button>
@@ -371,6 +398,12 @@
 <div class="modal-actions">
 <button class="ghost" id="cancelReactionPicker">Cancel</button>
 </div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="moreMenuModal">
+<div class="modal more-modal">
+<div class="more-menu" id="moreMenu"></div>
 </div>
 </div>
 
