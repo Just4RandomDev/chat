@@ -305,17 +305,25 @@ const el = {
   userProfileModal: $("userProfileModal"),
   userProfileBanner: $("userProfileBanner"),
   userProfileAvatar: $("userProfileAvatar"),
-  userProfileCustomStatus: $("userProfileCustomStatus"),
+  userProfileStatusDot: $("userProfileStatusDot"),
+  userProfileBlockBadge: $("userProfileBlockBadge"),
   userProfileName: $("userProfileName"),
-  userProfilePronouns: $("userProfilePronouns"),
+  userProfileHandle: $("userProfileHandle"),
+  userProfileCustomStatus: $("userProfileCustomStatus"),
   userProfileBadges: $("userProfileBadges"),
   userProfileBio: $("userProfileBio"),
+  userProfileActivity: $("userProfileActivity"),
+  userProfileActivityLabel: $("userProfileActivityLabel"),
+  userProfileActivityTitle: $("userProfileActivityTitle"),
+  userProfileActivityCurrent: $("userProfileActivityCurrent"),
+  userProfileActivityTotal: $("userProfileActivityTotal"),
+  userProfileActivityFill: $("userProfileActivityFill"),
   userProfileDmBtn: $("userProfileDmBtn"),
   userProfileBlockBtn: $("userProfileBlockBtn"),
   userProfileKickBtn: $("userProfileKickBtn"),
   userProfileCloseBtn: $("userProfileCloseBtn"),
   profileModal: $("profileModal"), myProfileAvatar: $("myProfileAvatar"), profileBanner: $("profileBanner"),
-  profileHeroName: $("profileHeroName"), profilePronouns: $("profilePronouns"),
+  profileHeroName: $("profileHeroName"), profileHandle: $("profileHandle"),
   profileCustomStatus: $("profileCustomStatus"), myProfileBio: $("myProfileBio"),
   profileBadges: $("profileBadges"), profileMoreBtn: $("profileMoreBtn"),
   openEditProfileBtn: $("openEditProfileBtn"), cancelProfileBtn: $("cancelProfileBtn"),
@@ -1798,6 +1806,7 @@ async function openUserProfile(uid) {
   const isSelf = uid === state.me.uid;
   const isAdminUser = state.admins.includes(uid);
   const isOnline = !!(state.presenceData && state.presenceData[uid]);
+  const isBlocked = state.blocked.has(uid);
 
   if (el.userProfileAvatar) el.userProfileAvatar.src = p.pfp || defaultPfp(p.username);
   if (el.userProfileName) {
@@ -1805,17 +1814,23 @@ async function openUserProfile(uid) {
     if (p.nameColor) el.userProfileName.style.color = p.nameColor;
     else el.userProfileName.style.color = "";
   }
-  if (el.userProfilePronouns) {
-    el.userProfilePronouns.textContent = p.pronouns || "";
-    el.userProfilePronouns.style.display = p.pronouns ? "" : "none";
+  if (el.userProfileHandle) {
+    el.userProfileHandle.textContent = "@" + (p.username || "user").toLowerCase();
   }
   if (el.userProfileCustomStatus) {
-    el.userProfileCustomStatus.textContent = p.status || "";
-    el.userProfileCustomStatus.style.display = p.status ? "" : "none";
+    el.userProfileCustomStatus.textContent = p.status || "no status";
   }
-  if (el.userProfileBio) el.userProfileBio.textContent = p.bio || "(no bio)";
+  if (el.userProfileBio) el.userProfileBio.textContent = p.bio || "No bio yet.";
   if (el.userProfileBanner) {
     el.userProfileBanner.style.cssText = bannerStyle(p.accentColor, p.bannerImage);
+  }
+
+  if (el.userProfileStatusDot) {
+    el.userProfileStatusDot.classList.toggle("offline", !isOnline);
+    el.userProfileStatusDot.style.display = isBlocked ? "none" : "block";
+  }
+  if (el.userProfileBlockBadge) {
+    el.userProfileBlockBadge.classList.toggle("hidden", !isBlocked);
   }
 
   if (el.userProfileBadges) {
@@ -1834,7 +1849,7 @@ async function openUserProfile(uid) {
     }
     if (isOnline) {
       const b = document.createElement("span");
-      b.className = "dp-badge";
+      b.className = "dp-badge online";
       b.textContent = "ONLINE";
       el.userProfileBadges.appendChild(b);
     }
@@ -1843,7 +1858,7 @@ async function openUserProfile(uid) {
   if (el.userProfileDmBtn) el.userProfileDmBtn.style.display = isSelf ? "none" : "";
   if (el.userProfileBlockBtn) {
     el.userProfileBlockBtn.style.display = isSelf ? "none" : "";
-    el.userProfileBlockBtn.textContent = state.blocked.has(uid) ? "Unblock" : t("block");
+    el.userProfileBlockBtn.textContent = isBlocked ? "Unblock" : t("block");
   }
   if (el.userProfileKickBtn) {
     const canKick = !isSelf && canModerate() && !state.roomMeta?.isPublic;
@@ -1879,6 +1894,8 @@ on(el.userProfileBlockBtn, "click", async () => {
     showToast("Blocked (client-side only)");
   }
   el.userProfileBlockBtn.textContent = state.blocked.has(uid) ? "Unblock" : t("block");
+  if (el.userProfileBlockBadge) el.userProfileBlockBadge.classList.toggle("hidden", !state.blocked.has(uid));
+  if (el.userProfileStatusDot) el.userProfileStatusDot.style.display = state.blocked.has(uid) ? "none" : "block";
   renderUserList();
 });
 
@@ -1905,15 +1922,13 @@ function openMyProfile() {
     if (me.nameColor) el.profileHeroName.style.color = me.nameColor;
     else el.profileHeroName.style.color = "";
   }
-  if (el.profilePronouns) {
-    el.profilePronouns.textContent = me.pronouns || "";
-    el.profilePronouns.style.display = me.pronouns ? "" : "none";
+  if (el.profileHandle) {
+    el.profileHandle.textContent = "@" + (me.username || "user").toLowerCase();
   }
   if (el.profileCustomStatus) {
-    el.profileCustomStatus.textContent = me.status || "";
-    el.profileCustomStatus.style.display = me.status ? "" : "none";
+    el.profileCustomStatus.textContent = me.status || "no status";
   }
-  if (el.myProfileBio) el.myProfileBio.textContent = me.bio || "(no bio)";
+  if (el.myProfileBio) el.myProfileBio.textContent = me.bio || "No bio yet.";
   if (el.profileBanner) {
     el.profileBanner.style.cssText = bannerStyle(me.accentColor, me.bannerImage);
   }
