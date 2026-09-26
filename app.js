@@ -300,8 +300,6 @@ const el = {
   mentionAutocomplete: $("mentionAutocomplete"),
   scrollBottomChat: $("scrollBottomChat"),
   scrollBottomDm: $("scrollBottomDm"),
-  userModal: $("userModal"), modalPfp: $("modalPfp"), modalName: $("modalName"), modalBio: $("modalBio"),
-  modalDmBtn: $("modalDmBtn"), modalBlockBtn: $("modalBlockBtn"), modalKickBtn: $("modalKickBtn"), modalCloseBtn: $("modalCloseBtn"),
   userProfileModal: $("userProfileModal"),
   userProfileBanner: $("userProfileBanner"),
   userProfileAvatar: $("userProfileAvatar"),
@@ -315,9 +313,11 @@ const el = {
   userProfileActivity: $("userProfileActivity"),
   userProfileActivityLabel: $("userProfileActivityLabel"),
   userProfileActivityTitle: $("userProfileActivityTitle"),
+  userProfileActivityArtist: $("userProfileActivityArtist"),
   userProfileActivityCurrent: $("userProfileActivityCurrent"),
   userProfileActivityTotal: $("userProfileActivityTotal"),
   userProfileActivityFill: $("userProfileActivityFill"),
+  userProfileMeta: $("userProfileMeta"),
   userProfileDmBtn: $("userProfileDmBtn"),
   userProfileBlockBtn: $("userProfileBlockBtn"),
   userProfileKickBtn: $("userProfileKickBtn"),
@@ -325,6 +325,7 @@ const el = {
   profileModal: $("profileModal"), myProfileAvatar: $("myProfileAvatar"), profileBanner: $("profileBanner"),
   profileHeroName: $("profileHeroName"), profileHandle: $("profileHandle"),
   profileCustomStatus: $("profileCustomStatus"), myProfileBio: $("myProfileBio"),
+  profileHeroMeta: $("profileHeroMeta"),
   profileBadges: $("profileBadges"), profileMoreBtn: $("profileMoreBtn"),
   openEditProfileBtn: $("openEditProfileBtn"), cancelProfileBtn: $("cancelProfileBtn"),
   editProfileModal: $("editProfileModal"), editProfileBanner: $("editProfileBanner"),
@@ -474,8 +475,15 @@ function bannerStyle(accent, bannerImage) {
   return `background: linear-gradient(135deg, ${a}, ${a}88);`;
 }
 
+function memberSince(createdAt) {
+  if (!createdAt) return "Unknown";
+  try {
+    return new Date(createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  } catch { return "Unknown"; }
+}
+
 async function fetchUser(uid) {
-  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "" };
+  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "", createdAt: null };
   const cached = state.userCache.get(uid);
   if (cached) return cached;
   try {
@@ -496,7 +504,7 @@ async function fetchUser(uid) {
     state.userCache.set(uid, p);
     return p;
   } catch {
-    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "" };
+    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "", createdAt: null };
     state.userCache.set(uid, f);
     return f;
   }
@@ -1668,8 +1676,7 @@ async function renderUserList() {
         pfp: state.me.pfp,
         nameColor: state.me.nameColor,
         bio: state.me.bio,
-        status: state.me.status,
-        pronouns: state.me.pronouns
+        status: state.me.status
       },
       isSelf: true
     });
@@ -1818,11 +1825,15 @@ async function openUserProfile(uid) {
     el.userProfileHandle.textContent = "@" + (p.username || "user").toLowerCase();
   }
   if (el.userProfileCustomStatus) {
-    el.userProfileCustomStatus.textContent = p.status || "no status";
+    el.userProfileCustomStatus.textContent = p.status || "";
+    el.userProfileCustomStatus.style.display = p.status ? "" : "none";
   }
   if (el.userProfileBio) el.userProfileBio.textContent = p.bio || "No bio yet.";
   if (el.userProfileBanner) {
     el.userProfileBanner.style.cssText = bannerStyle(p.accentColor, p.bannerImage);
+  }
+  if (el.userProfileMeta) {
+    el.userProfileMeta.textContent = memberSince(p.createdAt);
   }
 
   if (el.userProfileStatusDot) {
@@ -1837,19 +1848,19 @@ async function openUserProfile(uid) {
     el.userProfileBadges.innerHTML = "";
     if (isSelf) {
       const b = document.createElement("span");
-      b.className = "dp-badge you";
+      b.className = "dc-badge you";
       b.textContent = "YOU";
       el.userProfileBadges.appendChild(b);
     }
     if (isAdminUser) {
       const b = document.createElement("span");
-      b.className = "dp-badge admin";
+      b.className = "dc-badge admin";
       b.textContent = "ADMIN";
       el.userProfileBadges.appendChild(b);
     }
     if (isOnline) {
       const b = document.createElement("span");
-      b.className = "dp-badge online";
+      b.className = "dc-badge online";
       b.textContent = "ONLINE";
       el.userProfileBadges.appendChild(b);
     }
@@ -1926,22 +1937,26 @@ function openMyProfile() {
     el.profileHandle.textContent = "@" + (me.username || "user").toLowerCase();
   }
   if (el.profileCustomStatus) {
-    el.profileCustomStatus.textContent = me.status || "no status";
+    el.profileCustomStatus.textContent = me.status || "";
+    el.profileCustomStatus.style.display = me.status ? "" : "none";
   }
   if (el.myProfileBio) el.myProfileBio.textContent = me.bio || "No bio yet.";
   if (el.profileBanner) {
     el.profileBanner.style.cssText = bannerStyle(me.accentColor, me.bannerImage);
   }
+  if (el.profileHeroMeta) {
+    el.profileHeroMeta.textContent = memberSince(me.createdAt);
+  }
 
   if (el.profileBadges) {
     el.profileBadges.innerHTML = "";
     const youBadge = document.createElement("span");
-    youBadge.className = "dp-badge you";
+    youBadge.className = "dc-badge you";
     youBadge.textContent = "YOU";
     el.profileBadges.appendChild(youBadge);
     if (isGlobalAdmin()) {
       const adm = document.createElement("span");
-      adm.className = "dp-badge admin";
+      adm.className = "dc-badge admin";
       adm.textContent = "ADMIN";
       el.profileBadges.appendChild(adm);
     }
@@ -1963,7 +1978,6 @@ function openEditProfile() {
   const me = state.me;
   if (!me) return;
   el.editUsername.value = me.username;
-  el.editPronouns.value = me.pronouns || "";
   el.editBio.value = me.bio || "";
   el.editPfp.value = "";
   el.editBanner.value = "";
@@ -2000,7 +2014,6 @@ on(el.saveProfileBtn, "click", async () => {
   el.profileError.textContent = "";
   const newName = el.editUsername.value.trim();
   if (newName.length < 2 || newName.length > 24) return el.profileError.textContent = "Username must be 2–24 chars";
-  const newPronouns = (el.editPronouns.value || "").trim().slice(0, PRONOUNS_MAX);
   const newBio = el.editBio.value.trim();
   if (newBio.length > 200) return el.profileError.textContent = "Bio too long (200 max)";
 
@@ -2033,20 +2046,19 @@ on(el.saveProfileBtn, "click", async () => {
       username: newName,
       bio: newBio,
       pfp: newPfp,
-      pronouns: newPronouns,
       bannerImage: newBanner
     });
     state.me.username = newName;
     state.me.bio = newBio;
     state.me.pfp = newPfp;
-    state.me.pronouns = newPronouns;
     state.me.bannerImage = newBanner;
     el.myUsernameLabel.textContent = state.me.username;
     updateMyPfp();
     state.userCache.set(state.me.uid, {
       uid: state.me.uid, username: state.me.username, pfp: state.me.pfp,
       bio: state.me.bio, nameColor: state.me.nameColor, accentColor: state.me.accentColor,
-      status: state.me.status, pronouns: state.me.pronouns, bannerImage: state.me.bannerImage
+      status: state.me.status, pronouns: state.me.pronouns, bannerImage: state.me.bannerImage,
+      createdAt: state.me.createdAt
     });
     state.usernameIndex = null;
     el.editProfileModal.classList.add("hidden");
@@ -2187,62 +2199,6 @@ on(el.saveProfileColorsBtn, "click", async () => {
     showToast("Colors saved");
     if (state.roomCode) renderUserList();
   } catch (e) { showToast("Could not save colors"); }
-});
-
-let modalUid = null;
-
-async function openUserModal(uid) {
-  modalUid = uid;
-  const p = await fetchUser(uid);
-  el.modalPfp.src = p.pfp || defaultPfp(p.username);
-  el.modalName.textContent = p.username;
-  if (p.nameColor) el.modalName.style.color = p.nameColor;
-  else el.modalName.style.color = "";
-  el.modalBio.textContent = p.bio || "(no bio)";
-  el.modalBlockBtn.textContent = state.blocked.has(uid) ? "Unblock" : t("block");
-  el.modalKickBtn.classList.toggle("hidden", !canModerate() || state.roomMeta?.isPublic);
-  el.userModal.classList.remove("hidden");
-}
-
-on(el.modalCloseBtn, "click", () => { el.userModal.classList.add("hidden"); modalUid = null; });
-
-on(el.modalDmBtn, "click", () => {
-  if (!modalUid) return;
-  el.userModal.classList.add("hidden");
-  openDm(modalUid);
-  modalUid = null;
-});
-
-on(el.modalBlockBtn, "click", async () => {
-  if (!modalUid) return;
-  const uid = modalUid;
-  if (state.blocked.has(uid)) {
-    state.blocked.delete(uid);
-    try { await remove(ref(db, `blocks/${state.me.uid}/${uid}`)); } catch {}
-    showToast("Unblocked");
-  } else {
-    state.blocked.add(uid);
-    try { await set(ref(db, `blocks/${state.me.uid}/${uid}`), true); } catch {}
-    showToast("Blocked (client-side only)");
-  }
-  el.userModal.classList.add("hidden");
-  modalUid = null;
-  renderUserList();
-  if (!state.dmUid && state.roomCode) await reattachGroupListener();
-});
-
-on(el.modalKickBtn, "click", async () => {
-  if (!modalUid || !canModerate() || state.roomMeta?.isPublic) return;
-  const uid = modalUid;
-  const p = await fetchUser(uid);
-  try {
-    await set(ref(db, `rooms/${state.roomCode}/kicked/${uid}`), true);
-    await remove(ref(db, `chats/${state.roomCode}/presence/${uid}`));
-    botSay(state.roomCode, "🚪 " + p.username + " was kicked by " + state.me.username);
-    showToast("Kicked");
-  } catch (e) { showToast("Could not kick"); }
-  el.userModal.classList.add("hidden");
-  modalUid = null;
 });
 
 on(el.kickPanelBtn, "click", async () => {
@@ -2917,7 +2873,7 @@ try {
   applyTranslations();
   applyAppearance();
   if (el.themeSelect) el.themeSelect.value = currentTheme;
-  if (el.languageSelect) el.languageSelect.value = currentLang;
+  if (el.languageSelect) el.languageSelect.value = currentLanguage;
   setStatus(false);
   resetChatUI();
   resetDmUI();
