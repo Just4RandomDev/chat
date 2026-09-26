@@ -203,19 +203,43 @@
 <div class="dp-left">
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="userProfileAvatar" alt="">
-</div>
-<div class="dp-custom-status" id="userProfileCustomStatus"></div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="bio">Bio</div>
-<div class="dp-bio-display" id="userProfileBio">(no bio)</div>
+<span class="dp-avatar-status" id="userProfileStatusDot"></span>
+<span class="dp-avatar-block hidden" id="userProfileBlockBadge"></span>
 </div>
 </div>
 <div class="dp-right">
 <div class="dp-header">
 <div class="dp-username" id="userProfileName">—</div>
 </div>
-<div class="dp-pronouns" id="userProfilePronouns"></div>
+<div class="dp-subline">
+<span class="dp-handle" id="userProfileHandle">@user</span>
+<span class="dp-dot-sep">•</span>
+<span class="dp-status-inline" id="userProfileCustomStatus">—</span>
+</div>
 <div class="dp-badges" id="userProfileBadges"></div>
+<div class="dp-section">
+<div class="dp-bio-display" id="userProfileBio">(no bio)</div>
+</div>
+<div class="dp-activity hidden" id="userProfileActivity">
+<div class="dp-activity-row">
+<span class="dp-activity-label" id="userProfileActivityLabel">Listening to Spotify</span>
+</div>
+<div class="dp-activity-title" id="userProfileActivityTitle">—</div>
+<div class="dp-activity-progress">
+<span class="dp-activity-time" id="userProfileActivityCurrent">0:00</span>
+<div class="dp-activity-bar"><div class="dp-activity-fill" id="userProfileActivityFill"></div></div>
+<span class="dp-activity-time" id="userProfileActivityTotal">0:00</span>
+</div>
+<div class="dp-activity-controls">
+<span class="dp-ctrl">🔀</span>
+<span class="dp-ctrl">⏮</span>
+<span class="dp-ctrl">⏪</span>
+<span class="dp-ctrl">⏸</span>
+<span class="dp-ctrl">⏩</span>
+<span class="dp-ctrl">⏭</span>
+<span class="dp-ctrl">🔁</span>
+</div>
+</div>
 <div class="modal-actions">
 <button id="userProfileDmBtn" data-i18n="sendDm">Send DM</button>
 <button id="userProfileBlockBtn" data-i18n="block">Block</button>
@@ -237,18 +261,20 @@
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="myProfileAvatar" alt="">
 </div>
-<div class="dp-custom-status" id="profileCustomStatus"></div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="bio">Bio</div>
-<div class="dp-bio-display" id="myProfileBio">(no bio)</div>
-</div>
 </div>
 <div class="dp-right">
 <div class="dp-header">
 <div class="dp-username" id="profileHeroName">—</div>
 </div>
-<div class="dp-pronouns" id="profilePronouns"></div>
+<div class="dp-subline">
+<span class="dp-handle" id="profileHandle">@user</span>
+<span class="dp-dot-sep">•</span>
+<span class="dp-status-inline" id="profileCustomStatus">—</span>
+</div>
 <div class="dp-badges" id="profileBadges"></div>
+<div class="dp-section">
+<div class="dp-bio-display" id="myProfileBio">(no bio)</div>
+</div>
 <div class="modal-actions">
 <button id="openEditProfileBtn" data-i18n="editProfile">Edit Profile</button>
 <button class="ghost" id="cancelProfileBtn" data-i18n="close">Close</button>
