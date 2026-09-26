@@ -34,6 +34,7 @@ const PRESENCE_STALE_MS = 2 * 60 * 1000;
 const HEARTBEAT_MS = 30 * 1000;
 const SPAM_WINDOW_MS = 5000;
 const SPAM_MAX = 10;
+const STATUS_MAX = 150;
 
 const EMOJI_CATEGORIES = [
   { name: "Smileys", emojis: "😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 ☺️ 😚 😙 🥲 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 🥸 😎 🤓 🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖".split(" ") },
@@ -76,10 +77,10 @@ function applyIconMask(element, key) {
 }
 
 const translations = {
-  en: { tabLogin:"Log In",tabSignup:"Sign Up",loginBtn:"Log In",signupBtn:"Create Account",email:"Email",password:"Password",password6:"Password (6+ chars)",username:"Username",backToLobby:"← Lobby",rooms:"Rooms",publicRoom:"Public Lobby",createRoom:"+ Create Room",online:"Online",offline:"Offline",admin:"Admin",manageKicked:"Manage Kicked",roomSettings:"Room Settings",backToRoom:"← Back to room",noMessages:"No messages yet",typeMessage:"Type a message...",media:"Media",send:"Send",notifications:"Notifications",markAllRead:"Mark all read",noNotifications:"No notifications",sendDm:"Send DM",block:"Block",kick:"Kick from room",close:"Close",editProfile:"Edit Profile",bio:"Bio",save:"Save",cancel:"Cancel",clear:"Clear",roomCode:"Room code (unique id)",lobbyName:"Lobby Name",maxUsers:"Max users (2–500)",passwordOptional:"Password (optional)",create:"Create",passwordRequired:"Password Required",room:"Room",isLocked:"is locked.",join:"Join",kickedUsers:"Kicked Users",nobodyKicked:"Nobody is kicked.",changePasswordKeep:"Change password (leave empty to keep)",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",language:"Language",changePassword:"Change Password",currentPassword:"Current password",newPassword:"New password (6+ chars)",updatePassword:"Update Password",logout:"Log Out",kickedToast:"You've been kicked from this room",notifMention:"You were mentioned in",notifDm:"New message from",notifReply:"replied to you in",replyingTo:"Replying to",deleteRoom:"Delete Lobby",deleteRoomConfirm:"Delete this lobby permanently? This removes all messages.",roomDeleted:"Lobby deleted",tabAccount:"Account",tabAppearance:"Appearance",tabDanger:"Danger",account:"Account",presets:"Presets",colors:"Colors",advanced:"Advanced",advancedHint:"Full CSS override. Applies after all other styles. Only affects your browser.",editCustomCss:"Edit Custom CSS",resetAppearance:"Reset Appearance",danger:"Danger Zone",logoutHint:"Logging out will disconnect you from any room.",customCssTitle:"Custom CSS",customCssHint:"Anything you write here is injected after all other styles. Applies only to your browser.",appearanceReset:"Appearance reset to default",insertVars:"Insert All Variables",nameColor:"Name Color",accentColor:"Accent Color",pinRoom:"Pin this room",foreverRoom:"Forever room (never auto-deletes)",pickReaction:"Pick a reaction",spamWarning:"Slow down — you're sending too fast",memberSince:"Member Since",wipeRoom:"Wipe All Messages",wipeConfirm:"Delete every message in this room? This can't be undone.",wiped:"All messages wiped",pinned:"Pinned",unpinned:"Unpinned",foreverOn:"Room is now forever",foreverOff:"Room is no longer forever" },
-  es: { tabLogin:"Iniciar sesión",tabSignup:"Registrarse",loginBtn:"Iniciar sesión",signupBtn:"Crear cuenta",email:"Correo",password:"Contraseña",password6:"Contraseña (6+ caracteres)",username:"Usuario",backToLobby:"← Vestíbulo",rooms:"Salas",publicRoom:"Sala Pública",createRoom:"+ Crear Sala",online:"En línea",offline:"Desconectados",admin:"Admin",manageKicked:"Gestionar Expulsados",roomSettings:"Ajustes de Sala",backToRoom:"← Volver a la sala",noMessages:"Sin mensajes todavía",typeMessage:"Escribe un mensaje...",media:"Multimedia",send:"Enviar",notifications:"Notificaciones",markAllRead:"Marcar todo leído",noNotifications:"Sin notificaciones",sendDm:"Enviar MD",block:"Bloquear",kick:"Expulsar de la sala",close:"Cerrar",editProfile:"Editar Perfil",bio:"Biografía",save:"Guardar",cancel:"Cancelar",clear:"Limpiar",roomCode:"Código de sala (id único)",lobbyName:"Nombre del Lobby",maxUsers:"Usuarios máx (2–500)",passwordOptional:"Contraseña (opcional)",create:"Crear",passwordRequired:"Contraseña Requerida",room:"Sala",isLocked:"está bloqueada.",join:"Entrar",kickedUsers:"Usuarios Expulsados",nobodyKicked:"Nadie está expulsado.",changePasswordKeep:"Cambiar contraseña (vacío para mantener)",settings:"Ajustes",theme:"Tema",dark:"Oscuro",light:"Claro",language:"Idioma",changePassword:"Cambiar Contraseña",currentPassword:"Contraseña actual",newPassword:"Nueva contraseña (6+ caracteres)",updatePassword:"Actualizar",logout:"Cerrar Sesión",kickedToast:"Has sido expulsado de esta sala",notifMention:"Te mencionaron en",notifDm:"Nuevo mensaje de",notifReply:"te respondió en",replyingTo:"Respondiendo a",deleteRoom:"Eliminar Lobby",deleteRoomConfirm:"¿Eliminar este lobby permanentemente?",roomDeleted:"Lobby eliminado",tabAccount:"Cuenta",tabAppearance:"Apariencia",tabDanger:"Peligro",account:"Cuenta",presets:"Preajustes",colors:"Colores",advanced:"Avanzado",advancedHint:"Sobrescritura completa de CSS.",editCustomCss:"Editar CSS",resetAppearance:"Restablecer Apariencia",danger:"Zona de Peligro",logoutHint:"Cerrar sesión te desconectará.",customCssTitle:"CSS Personalizado",customCssHint:"Solo se aplica en tu navegador.",appearanceReset:"Apariencia restablecida",insertVars:"Insertar Variables",nameColor:"Color del Nombre",accentColor:"Color de Acento",pinRoom:"Fijar esta sala",foreverRoom:"Sala permanente",pickReaction:"Elige una reacción",spamWarning:"Más despacio",memberSince:"Miembro desde",wipeRoom:"Borrar Todos los Mensajes",wipeConfirm:"¿Borrar todos los mensajes?",wiped:"Mensajes borrados",pinned:"Fijada",unpinned:"No fijada",foreverOn:"Sala ahora es permanente",foreverOff:"Sala ya no es permanente" },
-  fr: { tabLogin:"Connexion",tabSignup:"Inscription",loginBtn:"Connexion",signupBtn:"Créer un compte",email:"Email",password:"Mot de passe",password6:"Mot de passe (6+ caractères)",username:"Pseudo",backToLobby:"← Salon",rooms:"Salons",publicRoom:"Salon Public",createRoom:"+ Créer un Salon",online:"En ligne",offline:"Hors ligne",admin:"Admin",manageKicked:"Gérer Exclus",roomSettings:"Paramètres du Salon",backToRoom:"← Retour au salon",noMessages:"Aucun message",typeMessage:"Écrire un message...",media:"Média",send:"Envoyer",notifications:"Notifications",markAllRead:"Tout marquer lu",noNotifications:"Aucune notification",sendDm:"Envoyer un MP",block:"Bloquer",kick:"Exclure du salon",close:"Fermer",editProfile:"Modifier le Profil",bio:"Bio",save:"Enregistrer",cancel:"Annuler",clear:"Effacer",roomCode:"Code du salon (id unique)",lobbyName:"Nom du Salon",maxUsers:"Utilisateurs max (2–500)",passwordOptional:"Mot de passe (optionnel)",create:"Créer",passwordRequired:"Mot de Passe Requis",room:"Salon",isLocked:"est verrouillé.",join:"Rejoindre",kickedUsers:"Utilisateurs Exclus",nobodyKicked:"Personne n'est exclu.",changePasswordKeep:"Changer le mot de passe (vide pour garder)",settings:"Paramètres",theme:"Thème",dark:"Sombre",light:"Clair",language:"Langue",changePassword:"Changer le Mot de Passe",currentPassword:"Mot de passe actuel",newPassword:"Nouveau mot de passe (6+ caractères)",updatePassword:"Mettre à jour",logout:"Déconnexion",kickedToast:"Vous avez été exclu de ce salon",notifMention:"Vous avez été mentionné dans",notifDm:"Nouveau message de",notifReply:"vous a répondu dans",replyingTo:"Répondre à",deleteRoom:"Supprimer le Salon",deleteRoomConfirm:"Supprimer ce salon définitivement ?",roomDeleted:"Salon supprimé",tabAccount:"Compte",tabAppearance:"Apparence",tabDanger:"Danger",account:"Compte",presets:"Préréglages",colors:"Couleurs",advanced:"Avancé",advancedHint:"Remplacement CSS complet.",editCustomCss:"Modifier CSS",resetAppearance:"Réinitialiser l'Apparence",danger:"Zone Dangereuse",logoutHint:"La déconnexion vous déconnectera.",customCssTitle:"CSS Personnalisé",customCssHint:"S'applique uniquement à votre navigateur.",appearanceReset:"Apparence réinitialisée",insertVars:"Insérer Variables",nameColor:"Couleur du Nom",accentColor:"Couleur d'Accent",pinRoom:"Épingler ce salon",foreverRoom:"Salon permanent",pickReaction:"Choisir une réaction",spamWarning:"Doucement",memberSince:"Membre depuis",wipeRoom:"Effacer Tous les Messages",wipeConfirm:"Effacer tous les messages ?",wiped:"Messages effacés",pinned:"Épinglé",unpinned:"Non épinglé",foreverOn:"Salon maintenant permanent",foreverOff:"Salon n'est plus permanent" },
-  ru: { tabLogin:"Войти",tabSignup:"Регистрация",loginBtn:"Войти",signupBtn:"Создать аккаунт",email:"Email",password:"Пароль",password6:"Пароль (6+ символов)",username:"Имя",backToLobby:"← Лобби",rooms:"Комнаты",publicRoom:"Публичная",createRoom:"+ Создать",online:"Онлайн",offline:"Офлайн",admin:"Админ",manageKicked:"Управление Киками",roomSettings:"Настройки Комнаты",backToRoom:"← Назад в комнату",noMessages:"Сообщений нет",typeMessage:"Введите сообщение...",media:"Медиа",send:"Отправить",notifications:"Уведомления",markAllRead:"Прочитать все",noNotifications:"Нет уведомлений",sendDm:"Написать ЛС",block:"Блок",kick:"Кикнуть из комнаты",close:"Закрыть",editProfile:"Профиль",bio:"О себе",save:"Сохранить",cancel:"Отмена",clear:"Очистить",roomCode:"Код комнаты",lobbyName:"Название",maxUsers:"Макс. людей (2–500)",passwordOptional:"Пароль (необязательно)",create:"Создать",passwordRequired:"Нужен Пароль",room:"Комната",isLocked:"заблокирована.",join:"Войти",kickedUsers:"Кикнутые",nobodyKicked:"Никто не кикнут.",changePasswordKeep:"Сменить пароль (пусто = оставить)",settings:"Настройки",theme:"Тема",dark:"Тёмная",light:"Светлая",language:"Язык",changePassword:"Сменить Пароль",currentPassword:"Текущий пароль",newPassword:"Новый пароль (6+ символов)",updatePassword:"Обновить",logout:"Выйти",kickedToast:"Вас кикнули",notifMention:"Вас упомянули в",notifDm:"Новое сообщение от",notifReply:"ответил вам в",replyingTo:"Ответ",deleteRoom:"Удалить Лобби",deleteRoomConfirm:"Удалить это лобби навсегда?",roomDeleted:"Лобби удалено",tabAccount:"Аккаунт",tabAppearance:"Внешний вид",tabDanger:"Опасно",account:"Аккаунт",presets:"Пресеты",colors:"Цвета",advanced:"Дополнительно",advancedHint:"Полная замена CSS.",editCustomCss:"Изменить CSS",resetAppearance:"Сбросить",danger:"Опасно",logoutHint:"Выход отключит вас.",customCssTitle:"Свой CSS",customCssHint:"Только для вашего браузера.",appearanceReset:"Оформление сброшено",insertVars:"Вставить переменные",nameColor:"Цвет Имени",accentColor:"Цвет Акцента",pinRoom:"Закрепить",foreverRoom:"Вечная комната",pickReaction:"Выберите реакцию",spamWarning:"Помедленнее",memberSince:"С нами с",wipeRoom:"Стереть Все",wipeConfirm:"Стереть все сообщения?",wiped:"Сообщения стёрты",pinned:"Закреплено",unpinned:"Откреплено",foreverOn:"Комната теперь вечная",foreverOff:"Комната больше не вечная" }
+  en: { tabLogin:"Log In",tabSignup:"Sign Up",loginBtn:"Log In",signupBtn:"Create Account",email:"Email",password:"Password",password6:"Password (6+ chars)",username:"Username",backToLobby:"← Lobby",rooms:"Rooms",publicRoom:"Public Lobby",createRoom:"+ Create Room",online:"Online",offline:"Offline",admin:"Admin",manageKicked:"Manage Kicked",roomSettings:"Room Settings",backToRoom:"← Back to room",noMessages:"No messages yet",typeMessage:"Type a message...",media:"Media",send:"Send",notifications:"Notifications",markAllRead:"Mark all read",noNotifications:"No notifications",sendDm:"Send DM",block:"Block",kick:"Kick from room",close:"Close",editProfile:"Edit Profile",bio:"Bio",save:"Save",cancel:"Cancel",clear:"Clear",roomCode:"Room code (unique id)",lobbyName:"Lobby Name",maxUsers:"Max users (2–500)",passwordOptional:"Password (optional)",create:"Create",passwordRequired:"Password Required",room:"Room",isLocked:"is locked.",join:"Join",kickedUsers:"Kicked Users",nobodyKicked:"Nobody is kicked.",changePasswordKeep:"Change password (leave empty to keep)",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",language:"Language",changePassword:"Change Password",currentPassword:"Current password",newPassword:"New password (6+ chars)",updatePassword:"Update Password",logout:"Log Out",kickedToast:"You've been kicked from this room",notifMention:"You were mentioned in",notifDm:"New message from",notifReply:"replied to you in",replyingTo:"Replying to",deleteRoom:"Delete Lobby",deleteRoomConfirm:"Delete this lobby permanently? This removes all messages.",roomDeleted:"Lobby deleted",tabAccount:"Account",tabAppearance:"Appearance",tabDanger:"Danger",account:"Account",presets:"Presets",colors:"Colors",advanced:"Advanced",advancedHint:"Full CSS override. Applies after all other styles. Only affects your browser.",editCustomCss:"Edit Custom CSS",resetAppearance:"Reset Appearance",danger:"Danger Zone",logoutHint:"Logging out will disconnect you from any room.",customCssTitle:"Custom CSS",customCssHint:"Anything you write here is injected after all other styles. Applies only to your browser.",appearanceReset:"Appearance reset to default",insertVars:"Insert All Variables",nameColor:"Name Color",accentColor:"Accent Color",pinRoom:"Pin this room",foreverRoom:"Forever room (never auto-deletes)",pickReaction:"Pick a reaction",spamWarning:"Slow down — you're sending too fast",memberSince:"Member Since",wipeRoom:"Wipe All Messages",wipeConfirm:"Delete every message in this room? This can't be undone.",wiped:"All messages wiped",pinned:"Pinned",unpinned:"Unpinned",foreverOn:"Room is now forever",foreverOff:"Room is no longer forever",status:"Custom Status",statusPlaceholder:"What are you up to?" },
+  es: { tabLogin:"Iniciar sesión",tabSignup:"Registrarse",loginBtn:"Iniciar sesión",signupBtn:"Crear cuenta",email:"Correo",password:"Contraseña",password6:"Contraseña (6+ caracteres)",username:"Usuario",backToLobby:"← Vestíbulo",rooms:"Salas",publicRoom:"Sala Pública",createRoom:"+ Crear Sala",online:"En línea",offline:"Desconectados",admin:"Admin",manageKicked:"Gestionar Expulsados",roomSettings:"Ajustes de Sala",backToRoom:"← Volver a la sala",noMessages:"Sin mensajes todavía",typeMessage:"Escribe un mensaje...",media:"Multimedia",send:"Enviar",notifications:"Notificaciones",markAllRead:"Marcar todo leído",noNotifications:"Sin notificaciones",sendDm:"Enviar MD",block:"Bloquear",kick:"Expulsar de la sala",close:"Cerrar",editProfile:"Editar Perfil",bio:"Biografía",save:"Guardar",cancel:"Cancelar",clear:"Limpiar",roomCode:"Código de sala (id único)",lobbyName:"Nombre del Lobby",maxUsers:"Usuarios máx (2–500)",passwordOptional:"Contraseña (opcional)",create:"Crear",passwordRequired:"Contraseña Requerida",room:"Sala",isLocked:"está bloqueada.",join:"Entrar",kickedUsers:"Usuarios Expulsados",nobodyKicked:"Nadie está expulsado.",changePasswordKeep:"Cambiar contraseña (vacío para mantener)",settings:"Ajustes",theme:"Tema",dark:"Oscuro",light:"Claro",language:"Idioma",changePassword:"Cambiar Contraseña",currentPassword:"Contraseña actual",newPassword:"Nueva contraseña (6+ caracteres)",updatePassword:"Actualizar",logout:"Cerrar Sesión",kickedToast:"Has sido expulsado de esta sala",notifMention:"Te mencionaron en",notifDm:"Nuevo mensaje de",notifReply:"te respondió en",replyingTo:"Respondiendo a",deleteRoom:"Eliminar Lobby",deleteRoomConfirm:"¿Eliminar este lobby permanentemente?",roomDeleted:"Lobby eliminado",tabAccount:"Cuenta",tabAppearance:"Apariencia",tabDanger:"Peligro",account:"Cuenta",presets:"Preajustes",colors:"Colores",advanced:"Avanzado",advancedHint:"Sobrescritura completa de CSS.",editCustomCss:"Editar CSS",resetAppearance:"Restablecer Apariencia",danger:"Zona de Peligro",logoutHint:"Cerrar sesión te desconectará.",customCssTitle:"CSS Personalizado",customCssHint:"Solo se aplica en tu navegador.",appearanceReset:"Apariencia restablecida",insertVars:"Insertar Variables",nameColor:"Color del Nombre",accentColor:"Color de Acento",pinRoom:"Fijar esta sala",foreverRoom:"Sala permanente",pickReaction:"Elige una reacción",spamWarning:"Más despacio",memberSince:"Miembro desde",wipeRoom:"Borrar Todos los Mensajes",wipeConfirm:"¿Borrar todos los mensajes?",wiped:"Mensajes borrados",pinned:"Fijada",unpinned:"No fijada",foreverOn:"Sala ahora es permanente",foreverOff:"Sala ya no es permanente",status:"Estado Personalizado",statusPlaceholder:"¿Qué estás haciendo?" },
+  fr: { tabLogin:"Connexion",tabSignup:"Inscription",loginBtn:"Connexion",signupBtn:"Créer un compte",email:"Email",password:"Mot de passe",password6:"Mot de passe (6+ caractères)",username:"Pseudo",backToLobby:"← Salon",rooms:"Salons",publicRoom:"Salon Public",createRoom:"+ Créer un Salon",online:"En ligne",offline:"Hors ligne",admin:"Admin",manageKicked:"Gérer Exclus",roomSettings:"Paramètres du Salon",backToRoom:"← Retour au salon",noMessages:"Aucun message",typeMessage:"Écrire un message...",media:"Média",send:"Envoyer",notifications:"Notifications",markAllRead:"Tout marquer lu",noNotifications:"Aucune notification",sendDm:"Envoyer un MP",block:"Bloquer",kick:"Exclure du salon",close:"Fermer",editProfile:"Modifier le Profil",bio:"Bio",save:"Enregistrer",cancel:"Annuler",clear:"Effacer",roomCode:"Code du salon (id unique)",lobbyName:"Nom du Salon",maxUsers:"Utilisateurs max (2–500)",passwordOptional:"Mot de passe (optionnel)",create:"Créer",passwordRequired:"Mot de Passe Requis",room:"Salon",isLocked:"est verrouillé.",join:"Rejoindre",kickedUsers:"Utilisateurs Exclus",nobodyKicked:"Personne n'est exclu.",changePasswordKeep:"Changer le mot de passe (vide pour garder)",settings:"Paramètres",theme:"Thème",dark:"Sombre",light:"Clair",language:"Langue",changePassword:"Changer le Mot de Passe",currentPassword:"Mot de passe actuel",newPassword:"Nouveau mot de passe (6+ caractères)",updatePassword:"Mettre à jour",logout:"Déconnexion",kickedToast:"Vous avez été exclu de ce salon",notifMention:"Vous avez été mentionné dans",notifDm:"Nouveau message de",notifReply:"vous a répondu dans",replyingTo:"Répondre à",deleteRoom:"Supprimer le Salon",deleteRoomConfirm:"Supprimer ce salon définitivement ?",roomDeleted:"Salon supprimé",tabAccount:"Compte",tabAppearance:"Apparence",tabDanger:"Danger",account:"Compte",presets:"Préréglages",colors:"Couleurs",advanced:"Avancé",advancedHint:"Remplacement CSS complet.",editCustomCss:"Modifier CSS",resetAppearance:"Réinitialiser l'Apparence",danger:"Zone Dangereuse",logoutHint:"La déconnexion vous déconnectera.",customCssTitle:"CSS Personnalisé",customCssHint:"S'applique uniquement à votre navigateur.",appearanceReset:"Apparence réinitialisée",insertVars:"Insérer Variables",nameColor:"Couleur du Nom",accentColor:"Couleur d'Accent",pinRoom:"Épingler ce salon",foreverRoom:"Salon permanent",pickReaction:"Choisir une réaction",spamWarning:"Doucement",memberSince:"Membre depuis",wipeRoom:"Effacer Tous les Messages",wipeConfirm:"Effacer tous les messages ?",wiped:"Messages effacés",pinned:"Épinglé",unpinned:"Non épinglé",foreverOn:"Salon maintenant permanent",foreverOff:"Salon n'est plus permanent",status:"Statut Personnalisé",statusPlaceholder:"Que fais-tu ?" },
+  ru: { tabLogin:"Войти",tabSignup:"Регистрация",loginBtn:"Войти",signupBtn:"Создать аккаунт",email:"Email",password:"Пароль",password6:"Пароль (6+ символов)",username:"Имя",backToLobby:"← Лобби",rooms:"Комнаты",publicRoom:"Публичная",createRoom:"+ Создать",online:"Онлайн",offline:"Офлайн",admin:"Админ",manageKicked:"Управление Киками",roomSettings:"Настройки Комнаты",backToRoom:"← Назад в комнату",noMessages:"Сообщений нет",typeMessage:"Введите сообщение...",media:"Медиа",send:"Отправить",notifications:"Уведомления",markAllRead:"Прочитать все",noNotifications:"Нет уведомлений",sendDm:"Написать ЛС",block:"Блок",kick:"Кикнуть из комнаты",close:"Закрыть",editProfile:"Профиль",bio:"О себе",save:"Сохранить",cancel:"Отмена",clear:"Очистить",roomCode:"Код комнаты",lobbyName:"Название",maxUsers:"Макс. людей (2–500)",passwordOptional:"Пароль (необязательно)",create:"Создать",passwordRequired:"Нужен Пароль",room:"Комната",isLocked:"заблокирована.",join:"Войти",kickedUsers:"Кикнутые",nobodyKicked:"Никто не кикнут.",changePasswordKeep:"Сменить пароль (пусто = оставить)",settings:"Настройки",theme:"Тема",dark:"Тёмная",light:"Светлая",language:"Язык",changePassword:"Сменить Пароль",currentPassword:"Текущий пароль",newPassword:"Новый пароль (6+ символов)",updatePassword:"Обновить",logout:"Выйти",kickedToast:"Вас кикнули",notifMention:"Вас упомянули в",notifDm:"Новое сообщение от",notifReply:"ответил вам в",replyingTo:"Ответ",deleteRoom:"Удалить Лобби",deleteRoomConfirm:"Удалить это лобби навсегда?",roomDeleted:"Лобби удалено",tabAccount:"Аккаунт",tabAppearance:"Внешний вид",tabDanger:"Опасно",account:"Аккаунт",presets:"Пресеты",colors:"Цвета",advanced:"Дополнительно",advancedHint:"Полная замена CSS.",editCustomCss:"Изменить CSS",resetAppearance:"Сбросить",danger:"Опасно",logoutHint:"Выход отключит вас.",customCssTitle:"Свой CSS",customCssHint:"Только для вашего браузера.",appearanceReset:"Оформление сброшено",insertVars:"Вставить переменные",nameColor:"Цвет Имени",accentColor:"Цвет Акцента",pinRoom:"Закрепить",foreverRoom:"Вечная комната",pickReaction:"Выберите реакцию",spamWarning:"Помедленнее",memberSince:"С нами с",wipeRoom:"Стереть Все",wipeConfirm:"Стереть все сообщения?",wiped:"Сообщения стёрты",pinned:"Закреплено",unpinned:"Откреплено",foreverOn:"Комната теперь вечная",foreverOff:"Комната больше не вечная",status:"Статус",statusPlaceholder:"Чем занимаешься?" }
 };
 
 const state = {
@@ -107,8 +108,7 @@ const state = {
   moreTarget: null,
   enteringRoom: false,
   viewedUid: null,
-  showChatScrollBtn: false,
-  showDmScrollBtn: false
+  reactionListeners: []
 };
 
 let currentLang = localStorage.getItem("lang") || "en";
@@ -281,6 +281,7 @@ const el = {
   userProfileAvatar: $("userProfileAvatar"),
   userProfileStatusDot: $("userProfileStatusDot"),
   userProfileStatusText: $("userProfileStatusText"),
+  userProfileCustomStatus: $("userProfileCustomStatus"),
   userProfileName: $("userProfileName"),
   userProfileId: $("userProfileId"),
   userProfileBadges: $("userProfileBadges"),
@@ -297,8 +298,9 @@ const el = {
   profileHeroName: $("profileHeroName"), profileHeroEmail: $("profileHeroEmail"), profileHeroMeta: $("profileHeroMeta"),
   profileBadges: $("profileBadges"), profileProgress: $("profileProgress"),
   profileJoinedText: $("profileJoinedText"), profileTodayText: $("profileTodayText"),
+  profileCustomStatus: $("profileCustomStatus"),
   editUsername: $("editUsername"), editBio: $("editBio"), editPfp: $("editPfp"),
-  editNameColor: $("editNameColor"), editAccentColor: $("editAccentColor"),
+  editNameColor: $("editNameColor"), editAccentColor: $("editAccentColor"), editStatus: $("editStatus"),
   saveProfileBtn: $("saveProfileBtn"), cancelProfileBtn: $("cancelProfileBtn"), profileError: $("profileError"),
   createRoomModal: $("createRoomModal"), createRoomCodeInput: $("createRoomCodeInput"),
   createRoomName: $("createRoomName"), createRoomMax: $("createRoomMax"), createRoomPassword: $("createRoomPassword"),
@@ -427,7 +429,7 @@ function botPfp() {
 }
 
 async function fetchUser(uid) {
-  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "" };
+  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "", status: "" };
   const cached = state.userCache.get(uid);
   if (cached) return cached;
   try {
@@ -440,12 +442,13 @@ async function fetchUser(uid) {
       bio: d.bio || "",
       createdAt: d.createdAt || null,
       nameColor: d.nameColor || "",
-      accentColor: d.accentColor || ""
+      accentColor: d.accentColor || "",
+      status: d.status || ""
     };
     state.userCache.set(uid, p);
     return p;
   } catch {
-    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "" };
+    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "", status: "" };
     state.userCache.set(uid, f);
     return f;
   }
@@ -607,7 +610,7 @@ on(el.signupBtn, "click", async () => {
   try {
     window.__signupInProgress = true;
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    await set(ref(db, `users/${cred.user.uid}`), { username, bio: "", pfp: "", nameColor: "", accentColor: "", createdAt: serverTimestamp() });
+    await set(ref(db, `users/${cred.user.uid}`), { username, bio: "", pfp: "", nameColor: "", accentColor: "", status: "", createdAt: serverTimestamp() });
     state.userCache.delete(cred.user.uid);
   } catch (e) {
     window.__signupInProgress = false;
@@ -660,14 +663,15 @@ onAuthStateChanged(auth, async (user) => {
   let d = snap.val();
   if (!d) {
     const fallback = (user.email || "").split("@")[0].slice(0, 16) || "user";
-    d = { username: fallback, bio: "", pfp: "", nameColor: "", accentColor: "" };
+    d = { username: fallback, bio: "", pfp: "", nameColor: "", accentColor: "", status: "" };
     await set(ref(db, `users/${user.uid}`), d);
   }
 
   state.me = {
     uid: user.uid, email: user.email,
     username: d.username || "user", pfp: d.pfp || "", bio: d.bio || "",
-    createdAt: d.createdAt || null, nameColor: d.nameColor || "", accentColor: d.accentColor || ""
+    createdAt: d.createdAt || null, nameColor: d.nameColor || "", accentColor: d.accentColor || "",
+    status: d.status || ""
   };
   if (el.myUsernameLabel) el.myUsernameLabel.textContent = state.me.username;
   updateMyPfp();
@@ -1055,6 +1059,10 @@ async function detachFromRoom() {
   if (state.kickedOff) { state.kickedOff(); state.kickedOff = null; }
   if (state.cleanId) { clearInterval(state.cleanId); state.cleanId = null; }
   if (state.heartbeatId) { clearInterval(state.heartbeatId); state.heartbeatId = null; }
+  if (state.reactionListeners) {
+    state.reactionListeners.forEach(fn => { try { fn(); } catch (e) {} });
+    state.reactionListeners = [];
+  }
   if (state.presenceRef) { try { await remove(state.presenceRef); } catch {} state.presenceRef = null; }
   state.roomRef = null; state.queryRef = null; state.roomCode = null; state.roomMeta = null;
   state.presenceData = {}; state.seenData = {};
@@ -1306,10 +1314,18 @@ async function renderMessage(container, msgId, msg, isOwn, isDm) {
     }
   }
 
-  if (msg.reactions && Object.keys(msg.reactions).length) {
-    const reactionsEl = document.createElement("div");
-    reactionsEl.className = "reactions";
-    for (const [emoji, users] of Object.entries(msg.reactions)) {
+  const reactionsEl = document.createElement("div");
+  reactionsEl.className = "reactions";
+  line.appendChild(reactionsEl);
+
+  const reactionsPath = isDm
+    ? `${dmPath(state.me.uid, state.dmUid)}/${msgId}/reactions`
+    : `chats/${state.roomCode}/messages/${msgId}/reactions`;
+
+  const renderPills = (data) => {
+    reactionsEl.innerHTML = "";
+    if (!data) return;
+    for (const [emoji, users] of Object.entries(data)) {
       if (!users) continue;
       const uids = Object.keys(users).filter(u => users[u] === true);
       if (!uids.length) continue;
@@ -1320,8 +1336,17 @@ async function renderMessage(container, msgId, msg, isOwn, isDm) {
       pill.addEventListener("click", () => toggleReaction(msgId, emoji, isDm));
       reactionsEl.appendChild(pill);
     }
-    if (reactionsEl.children.length) line.appendChild(reactionsEl);
-  }
+  };
+
+  const reactionsRef = ref(db, reactionsPath);
+  const reactionsHandler = onValue(reactionsRef, (snap) => {
+    renderPills(snap.val());
+  });
+
+  if (!state.reactionListeners) state.reactionListeners = [];
+  state.reactionListeners.push(() => {
+    try { off(reactionsRef, "value", reactionsHandler); } catch (e) {}
+  });
 
   if (!isBot) {
     const actions = document.createElement("div");
@@ -1600,7 +1625,8 @@ async function renderUserList() {
         username: state.me.username,
         pfp: state.me.pfp,
         nameColor: state.me.nameColor,
-        bio: state.me.bio
+        bio: state.me.bio,
+        status: state.me.status
       },
       isSelf: true
     });
@@ -1690,9 +1716,13 @@ function buildUserRow(entry, isOnline) {
 
   const subLine = document.createElement("div");
   subLine.className = "u-sub";
-  if (isSelf) subLine.textContent = "you";
-  else if (isOnline) subLine.textContent = "online";
-  else {
+  if (profile.status) {
+    subLine.textContent = profile.status;
+  } else if (isSelf) {
+    subLine.textContent = "you";
+  } else if (isOnline) {
+    subLine.textContent = "online";
+  } else {
     const lastSeen = state.seenData[uid]?.lastSeen;
     if (lastSeen) {
       const diff = Date.now() - lastSeen;
@@ -1741,6 +1771,9 @@ async function openUserProfile(uid) {
     else el.userProfileName.style.color = "";
   }
   if (el.userProfileId) el.userProfileId.textContent = "#" + (p.uid ? p.uid.slice(0, 6).toLowerCase() : "000000");
+  if (el.userProfileCustomStatus) {
+    el.userProfileCustomStatus.textContent = p.status || "";
+  }
   if (el.userProfileBio) el.userProfileBio.textContent = p.bio || "(no bio)";
   if (el.userProfileBanner) {
     const accent = p.accentColor || "#8c5aff";
@@ -2465,6 +2498,7 @@ on(el.profileBtn, "click", () => {
   el.editUsername.value = state.me.username;
   el.editBio.value = state.me.bio;
   el.editPfp.value = "";
+  if (el.editStatus) el.editStatus.value = state.me.status || "";
   el.editNameColor.value = state.me.nameColor || "#ffffff";
   el.editAccentColor.value = state.me.accentColor || "#8c5aff";
   el.profileError.textContent = "";
@@ -2474,6 +2508,10 @@ on(el.profileBtn, "click", () => {
   el.profileBanner.style.background = state.me.accentColor
     ? `linear-gradient(135deg, ${state.me.accentColor}, ${state.me.accentColor}88)`
     : "";
+
+  if (el.profileCustomStatus) {
+    el.profileCustomStatus.textContent = state.me.status || "";
+  }
 
   if (el.profileBadges) {
     el.profileBadges.innerHTML = "";
@@ -2511,12 +2549,19 @@ on(el.editAccentColor, "input", () => {
   el.profileBanner.style.background = `linear-gradient(135deg, ${v}, ${v}88)`;
 });
 
+on(el.editStatus, "input", () => {
+  if (el.profileCustomStatus) {
+    el.profileCustomStatus.textContent = el.editStatus.value;
+  }
+});
+
 on(el.cancelProfileBtn, "click", () => el.profileModal.classList.add("hidden"));
 
 on(el.saveProfileBtn, "click", async () => {
   el.profileError.textContent = "";
   const newName = el.editUsername.value.trim();
   if (newName.length < 2 || newName.length > 24) return el.profileError.textContent = "Username must be 2–24 chars";
+  const newStatus = (el.editStatus ? el.editStatus.value : "").slice(0, STATUS_MAX);
   let newPfp = state.me.pfp;
   if (el.editPfp.files[0]) {
     const file = el.editPfp.files[0];
@@ -2532,18 +2577,21 @@ on(el.saveProfileBtn, "click", async () => {
   const accentColor = el.editAccentColor.value;
   try {
     await update(ref(db, `users/${state.me.uid}`), {
-      username: newName, bio: el.editBio.value.trim(), pfp: newPfp, nameColor, accentColor
+      username: newName, bio: el.editBio.value.trim(), pfp: newPfp,
+      nameColor, accentColor, status: newStatus
     });
     state.me.username = newName;
     state.me.bio = el.editBio.value.trim();
     state.me.pfp = newPfp;
     state.me.nameColor = nameColor;
     state.me.accentColor = accentColor;
+    state.me.status = newStatus;
     el.myUsernameLabel.textContent = state.me.username;
     updateMyPfp();
     state.userCache.set(state.me.uid, {
       uid: state.me.uid, username: state.me.username, pfp: state.me.pfp,
-      bio: state.me.bio, nameColor: state.me.nameColor, accentColor: state.me.accentColor
+      bio: state.me.bio, nameColor: state.me.nameColor, accentColor: state.me.accentColor,
+      status: state.me.status
     });
     state.usernameIndex = null;
     el.profileModal.classList.add("hidden");

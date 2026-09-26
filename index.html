@@ -198,18 +198,21 @@
 
 <div class="modal-backdrop hidden" id="userProfileModal">
 <div class="modal discord-profile user-card">
-<div class="dp-banner" id="userProfileBanner"></div>
+<div class="dp-banner" id="userProfileBanner">
+<button class="dp-more-btn" id="userProfileMoreBtn">⋯</button>
+</div>
 <div class="dp-body">
 <div class="dp-left">
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="userProfileAvatar" alt="">
+<span class="dp-avatar-status" id="userProfileStatusDot"></span>
 </div>
 <div class="dp-online">
-<span class="dp-status-dot" id="userProfileStatusDot"></span>
 <span id="userProfileStatusText">Offline</span>
 </div>
 </div>
 <div class="dp-right">
+<div class="dp-custom-status" id="userProfileCustomStatus"></div>
 <div class="dp-header">
 <div class="dp-username" id="userProfileName">—</div>
 <div class="dp-discrim" id="userProfileId">—</div>
@@ -225,9 +228,7 @@
 <div class="dp-music-icon">🎵</div>
 <div class="dp-music-info">
 <div class="dp-music-title" id="userProfileMeta">—</div>
-<div class="dp-music-bar">
-<div class="dp-music-progress" id="userProfileProgress"></div>
-</div>
+<div class="dp-music-bar"><div class="dp-music-progress" id="userProfileProgress"></div></div>
 <div class="dp-music-times">
 <span id="userProfileJoinedText">Joined</span>
 <span id="userProfileTodayText">Today</span>
@@ -264,11 +265,16 @@
 </div>
 </div>
 <div class="dp-right">
+<div class="dp-custom-status" id="profileCustomStatus"></div>
 <div class="dp-header">
 <div class="dp-username" id="profileHeroName">—</div>
 <div class="dp-discrim" id="profileHeroEmail">—</div>
 </div>
 <div class="dp-badges" id="profileBadges"></div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="status">Custom Status</div>
+<input type="text" id="editStatus" maxlength="150" class="dp-input" placeholder="What are you up to?">
+</div>
 <div class="dp-section">
 <div class="dp-label" data-i18n="bio">Bio</div>
 <textarea id="editBio" rows="3" maxlength="200" class="dp-bio-edit" placeholder="Tell us about yourself..."></textarea>
@@ -293,9 +299,7 @@
 <div class="dp-music-icon">🎵</div>
 <div class="dp-music-info">
 <div class="dp-music-title" id="profileHeroMeta">—</div>
-<div class="dp-music-bar">
-<div class="dp-music-progress" id="profileProgress"></div>
-</div>
+<div class="dp-music-bar"><div class="dp-music-progress" id="profileProgress"></div></div>
 <div class="dp-music-times">
 <span id="profileJoinedText">Joined</span>
 <span id="profileTodayText">Today</span>
