@@ -191,7 +191,7 @@
 <div class="modal-backdrop hidden" id="profileModal">
 <div class="modal profile-modal">
 <div class="profile-hero">
-<div class="profile-banner"></div>
+<div class="profile-banner" id="profileBanner"></div>
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="myProfileAvatar" alt="">
 <label class="profile-avatar-edit">
@@ -206,6 +206,12 @@
 <h2 data-i18n="editProfile">Edit Profile</h2>
 <label class="field"><span data-i18n="username">Username</span><input type="text" id="editUsername" maxlength="24"></label>
 <label class="field"><span data-i18n="bio">Bio</span><textarea id="editBio" rows="3" maxlength="200"></textarea></label>
+<label class="field"><span data-i18n="nameColor">Name Color</span>
+<input type="color" id="editNameColor" class="color-input">
+</label>
+<label class="field"><span data-i18n="accentColor">Accent Color</span>
+<input type="color" id="editAccentColor" class="color-input">
+</label>
 <div class="modal-actions">
 <button id="saveProfileBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelProfileBtn" data-i18n="cancel">Cancel</button>
@@ -221,6 +227,7 @@
 <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="createRoomName" placeholder="My Lobby" maxlength="40"></label>
 <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="createRoomMax" min="2" max="500" value="20"></label>
 <label class="field"><span data-i18n="passwordOptional">Password (optional)</span><input type="password" id="createRoomPassword" placeholder="Leave empty for no password"></label>
+<label class="field check-row"><input type="checkbox" id="createRoomPinned"><span data-i18n="pinRoom">Pin this room</span></label>
 <div class="modal-actions">
 <button id="createRoomBtn" data-i18n="create">Create</button>
 <button class="ghost" id="cancelCreateRoomBtn" data-i18n="cancel">Cancel</button>
@@ -256,6 +263,7 @@
 <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="settingsRoomName" maxlength="40"></label>
 <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="settingsRoomMax" min="2" max="500"></label>
 <label class="field"><span data-i18n="changePasswordKeep">Change password (leave empty to keep)</span><input type="password" id="settingsRoomPassword" placeholder="New password"></label>
+<label class="field check-row"><input type="checkbox" id="settingsRoomPinned"><span data-i18n="pinRoom">Pin this room</span></label>
 <div class="modal-actions">
 <button id="saveRoomSettingsBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelRoomSettingsBtn" data-i18n="cancel">Cancel</button>
@@ -352,6 +360,16 @@
 <button id="saveCustomCssBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelCustomCssBtn" data-i18n="cancel">Cancel</button>
 <button class="ghost" id="clearCustomCssBtn" data-i18n="clear">Clear</button>
+</div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="reactionPickerModal">
+<div class="modal reaction-modal">
+<h2 data-i18n="pickReaction">Pick a reaction</h2>
+<div class="reaction-picker" id="reactionPicker"></div>
+<div class="modal-actions">
+<button class="ghost" id="cancelReactionPicker">Cancel</button>
 </div>
 </div>
 </div>
