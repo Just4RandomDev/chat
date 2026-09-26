@@ -35,6 +35,8 @@ const HEARTBEAT_MS = 30 * 1000;
 const SPAM_WINDOW_MS = 5000;
 const SPAM_MAX = 10;
 const STATUS_MAX = 150;
+const PRONOUNS_MAX = 32;
+const BANNER_MAX_BYTES = 400 * 1024;
 
 let translations = {};
 let emojiCategories = [];
@@ -57,10 +59,12 @@ const ICON_PATHS = {
   crown:     `M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z`,
   chat:      `M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z`,
   pencil:    `M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z`,
+  image:     `M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z`,
   send:      `M2.01 21L23 12 2.01 3 2 10l15 2-15 2z`,
   reply:     `M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z`,
   trash:     `M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z`,
-  more:      `M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z`
+  more:      `M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z`,
+  block:     `M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5.7 7.1l9.2 9.2A8 8 0 0 1 5.7 7.1zm12.6 9.8L9.1 7.7a8 8 0 0 1 9.2 9.2z`
 };
 
 function applyIconMask(element, key) {
@@ -301,29 +305,32 @@ const el = {
   userProfileModal: $("userProfileModal"),
   userProfileBanner: $("userProfileBanner"),
   userProfileAvatar: $("userProfileAvatar"),
-  userProfileStatusDot: $("userProfileStatusDot"),
-  userProfileStatusText: $("userProfileStatusText"),
   userProfileCustomStatus: $("userProfileCustomStatus"),
   userProfileName: $("userProfileName"),
-  userProfileId: $("userProfileId"),
+  userProfilePronouns: $("userProfilePronouns"),
   userProfileBadges: $("userProfileBadges"),
   userProfileBio: $("userProfileBio"),
-  userProfileMeta: $("userProfileMeta"),
-  userProfileProgress: $("userProfileProgress"),
-  userProfileJoinedText: $("userProfileJoinedText"),
-  userProfileTodayText: $("userProfileTodayText"),
   userProfileDmBtn: $("userProfileDmBtn"),
   userProfileBlockBtn: $("userProfileBlockBtn"),
   userProfileKickBtn: $("userProfileKickBtn"),
   userProfileCloseBtn: $("userProfileCloseBtn"),
   profileModal: $("profileModal"), myProfileAvatar: $("myProfileAvatar"), profileBanner: $("profileBanner"),
-  profileHeroName: $("profileHeroName"), profileHeroEmail: $("profileHeroEmail"), profileHeroMeta: $("profileHeroMeta"),
-  profileBadges: $("profileBadges"), profileProgress: $("profileProgress"),
-  profileJoinedText: $("profileJoinedText"), profileTodayText: $("profileTodayText"),
-  profileCustomStatus: $("profileCustomStatus"),
-  editUsername: $("editUsername"), editBio: $("editBio"), editPfp: $("editPfp"),
-  editNameColor: $("editNameColor"), editAccentColor: $("editAccentColor"), editStatus: $("editStatus"),
-  saveProfileBtn: $("saveProfileBtn"), cancelProfileBtn: $("cancelProfileBtn"), profileError: $("profileError"),
+  profileHeroName: $("profileHeroName"), profilePronouns: $("profilePronouns"),
+  profileCustomStatus: $("profileCustomStatus"), myProfileBio: $("myProfileBio"),
+  profileBadges: $("profileBadges"), profileMoreBtn: $("profileMoreBtn"),
+  openEditProfileBtn: $("openEditProfileBtn"), cancelProfileBtn: $("cancelProfileBtn"),
+  editProfileModal: $("editProfileModal"), editProfileBanner: $("editProfileBanner"),
+  editProfileAvatar: $("editProfileAvatar"),
+  editUsername: $("editUsername"), editPronouns: $("editPronouns"),
+  editBio: $("editBio"), editPfp: $("editPfp"), editBanner: $("editBanner"),
+  editNameColor: $("editNameColor"), editAccentColor: $("editAccentColor"),
+  saveProfileBtn: $("saveProfileBtn"), cancelEditProfileBtn: $("cancelEditProfileBtn"), profileError: $("profileError"),
+  saveProfileColorsBtn: $("saveProfileColorsBtn"),
+  statusModal: $("statusModal"), statusInput: $("statusInput"),
+  saveStatusBtn: $("saveStatusBtn"), cancelStatusBtn: $("cancelStatusBtn"),
+  blockUserModal: $("blockUserModal"), blockUserSelect: $("blockUserSelect"),
+  confirmBlockBtn: $("confirmBlockBtn"), cancelBlockBtn: $("cancelBlockBtn"),
+  profileMoreMenuModal: $("profileMoreMenuModal"), profileMoreMenu: $("profileMoreMenu"),
   createRoomModal: $("createRoomModal"), createRoomCodeInput: $("createRoomCodeInput"),
   createRoomName: $("createRoomName"), createRoomMax: $("createRoomMax"), createRoomPassword: $("createRoomPassword"),
   createRoomPinned: $("createRoomPinned"), createRoomForever: $("createRoomForever"),
@@ -358,6 +365,7 @@ applyIconMask($("settingsIcon"), "gear");
 applyIconMask($("paperclipIcon"), "paperclip");
 applyIconMask($("dmPaperclipIcon"), "paperclip");
 applyIconMask($("editPfpIcon"), "pencil");
+applyIconMask($("editBannerIcon"), "image");
 applyIconMask($("emptyIcon"), "chat");
 applyIconMask($("sendIcon"), "send");
 applyIconMask($("dmSendIcon"), "send");
@@ -450,8 +458,16 @@ function botPfp() {
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
 
+function bannerStyle(accent, bannerImage) {
+  if (bannerImage) {
+    return `background-image: url('${bannerImage}'); background-size: cover; background-position: center;`;
+  }
+  const a = accent || "#8c5aff";
+  return `background: linear-gradient(135deg, ${a}, ${a}88);`;
+}
+
 async function fetchUser(uid) {
-  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "", status: "" };
+  if (uid === BOT_UID) return { uid: BOT_UID, username: "IlloComoVamos", pfp: botPfp(), bio: "System bot", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "" };
   const cached = state.userCache.get(uid);
   if (cached) return cached;
   try {
@@ -465,12 +481,14 @@ async function fetchUser(uid) {
       createdAt: d.createdAt || null,
       nameColor: d.nameColor || "",
       accentColor: d.accentColor || "",
-      status: d.status || ""
+      status: d.status || "",
+      pronouns: d.pronouns || "",
+      bannerImage: d.bannerImage || ""
     };
     state.userCache.set(uid, p);
     return p;
   } catch {
-    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "", status: "" };
+    const f = { uid, username: "user", pfp: defaultPfp("?"), bio: "", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "" };
     state.userCache.set(uid, f);
     return f;
   }
@@ -632,7 +650,7 @@ on(el.signupBtn, "click", async () => {
   try {
     window.__signupInProgress = true;
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    await set(ref(db, `users/${cred.user.uid}`), { username, bio: "", pfp: "", nameColor: "", accentColor: "", status: "", createdAt: serverTimestamp() });
+    await set(ref(db, `users/${cred.user.uid}`), { username, bio: "", pfp: "", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "", createdAt: serverTimestamp() });
     state.userCache.delete(cred.user.uid);
   } catch (e) {
     window.__signupInProgress = false;
@@ -679,7 +697,7 @@ onAuthStateChanged(auth, async (user) => {
   let d = snap.val();
   if (!d) {
     const fallback = (user.email || "").split("@")[0].slice(0, 16) || "user";
-    d = { username: fallback, bio: "", pfp: "", nameColor: "", accentColor: "", status: "" };
+    d = { username: fallback, bio: "", pfp: "", nameColor: "", accentColor: "", status: "", pronouns: "", bannerImage: "" };
     await set(ref(db, `users/${user.uid}`), d);
   }
 
@@ -687,7 +705,7 @@ onAuthStateChanged(auth, async (user) => {
     uid: user.uid, email: user.email,
     username: d.username || "user", pfp: d.pfp || "", bio: d.bio || "",
     createdAt: d.createdAt || null, nameColor: d.nameColor || "", accentColor: d.accentColor || "",
-    status: d.status || ""
+    status: d.status || "", pronouns: d.pronouns || "", bannerImage: d.bannerImage || ""
   };
   if (el.myUsernameLabel) el.myUsernameLabel.textContent = state.me.username;
   updateMyPfp();
@@ -1642,7 +1660,8 @@ async function renderUserList() {
         pfp: state.me.pfp,
         nameColor: state.me.nameColor,
         bio: state.me.bio,
-        status: state.me.status
+        status: state.me.status,
+        pronouns: state.me.pronouns
       },
       isSelf: true
     });
@@ -1786,21 +1805,17 @@ async function openUserProfile(uid) {
     if (p.nameColor) el.userProfileName.style.color = p.nameColor;
     else el.userProfileName.style.color = "";
   }
-  if (el.userProfileId) el.userProfileId.textContent = "#" + (p.uid ? p.uid.slice(0, 6).toLowerCase() : "000000");
+  if (el.userProfilePronouns) {
+    el.userProfilePronouns.textContent = p.pronouns || "";
+    el.userProfilePronouns.style.display = p.pronouns ? "" : "none";
+  }
   if (el.userProfileCustomStatus) {
     el.userProfileCustomStatus.textContent = p.status || "";
+    el.userProfileCustomStatus.style.display = p.status ? "" : "none";
   }
   if (el.userProfileBio) el.userProfileBio.textContent = p.bio || "(no bio)";
   if (el.userProfileBanner) {
-    const accent = p.accentColor || "#8c5aff";
-    el.userProfileBanner.style.background = `linear-gradient(135deg, ${accent}, ${accent}88)`;
-  }
-
-  if (el.userProfileStatusDot) {
-    el.userProfileStatusDot.classList.toggle("offline", !isOnline);
-  }
-  if (el.userProfileStatusText) {
-    el.userProfileStatusText.textContent = isOnline ? "Online" : "Offline";
+    el.userProfileBanner.style.cssText = bannerStyle(p.accentColor, p.bannerImage);
   }
 
   if (el.userProfileBadges) {
@@ -1823,27 +1838,6 @@ async function openUserProfile(uid) {
       b.textContent = "ONLINE";
       el.userProfileBadges.appendChild(b);
     }
-  }
-
-  if (p.createdAt) {
-    const created = new Date(p.createdAt);
-    const now = new Date();
-    if (el.userProfileMeta) {
-      el.userProfileMeta.textContent = "Joined " + created.toLocaleDateString();
-    }
-    if (el.userProfileJoinedText) {
-      el.userProfileJoinedText.textContent = created.toLocaleDateString();
-    }
-    if (el.userProfileTodayText) {
-      el.userProfileTodayText.textContent = now.toLocaleDateString();
-    }
-    const totalSpan = now - created;
-    const maxSpan = 5 * 365 * 24 * 60 * 60 * 1000;
-    const pct = Math.min(100, Math.max(0, (totalSpan / maxSpan) * 100));
-    if (el.userProfileProgress) el.userProfileProgress.style.width = pct + "%";
-  } else {
-    if (el.userProfileMeta) el.userProfileMeta.textContent = "Unknown";
-    if (el.userProfileProgress) el.userProfileProgress.style.width = "0%";
   }
 
   if (el.userProfileDmBtn) el.userProfileDmBtn.style.display = isSelf ? "none" : "";
@@ -1900,6 +1894,284 @@ on(el.userProfileKickBtn, "click", async () => {
   } catch (e) { showToast("Could not kick"); }
   el.userProfileModal.classList.add("hidden");
   state.viewedUid = null;
+});
+
+function openMyProfile() {
+  const me = state.me;
+  if (!me) return;
+  if (el.myProfileAvatar) el.myProfileAvatar.src = me.pfp || defaultPfp(me.username);
+  if (el.profileHeroName) {
+    el.profileHeroName.textContent = me.username;
+    if (me.nameColor) el.profileHeroName.style.color = me.nameColor;
+    else el.profileHeroName.style.color = "";
+  }
+  if (el.profilePronouns) {
+    el.profilePronouns.textContent = me.pronouns || "";
+    el.profilePronouns.style.display = me.pronouns ? "" : "none";
+  }
+  if (el.profileCustomStatus) {
+    el.profileCustomStatus.textContent = me.status || "";
+    el.profileCustomStatus.style.display = me.status ? "" : "none";
+  }
+  if (el.myProfileBio) el.myProfileBio.textContent = me.bio || "(no bio)";
+  if (el.profileBanner) {
+    el.profileBanner.style.cssText = bannerStyle(me.accentColor, me.bannerImage);
+  }
+
+  if (el.profileBadges) {
+    el.profileBadges.innerHTML = "";
+    const youBadge = document.createElement("span");
+    youBadge.className = "dp-badge you";
+    youBadge.textContent = "YOU";
+    el.profileBadges.appendChild(youBadge);
+    if (isGlobalAdmin()) {
+      const adm = document.createElement("span");
+      adm.className = "dp-badge admin";
+      adm.textContent = "ADMIN";
+      el.profileBadges.appendChild(adm);
+    }
+  }
+
+  el.profileModal.classList.remove("hidden");
+}
+
+on(el.profileBtn, "click", openMyProfile);
+
+on(el.openEditProfileBtn, "click", () => {
+  el.profileModal.classList.add("hidden");
+  openEditProfile();
+});
+
+on(el.cancelProfileBtn, "click", () => el.profileModal.classList.add("hidden"));
+
+function openEditProfile() {
+  const me = state.me;
+  if (!me) return;
+  el.editUsername.value = me.username;
+  el.editPronouns.value = me.pronouns || "";
+  el.editBio.value = me.bio || "";
+  el.editPfp.value = "";
+  el.editBanner.value = "";
+  el.profileError.textContent = "";
+  el.editProfileAvatar.src = me.pfp || defaultPfp(me.username);
+  el.editProfileBanner.style.cssText = bannerStyle(me.accentColor, me.bannerImage);
+  el.editProfileModal.classList.remove("hidden");
+}
+
+on(el.cancelEditProfileBtn, "click", () => el.editProfileModal.classList.add("hidden"));
+
+on(el.editPfp, "change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = (ev) => { el.editProfileAvatar.src = ev.target.result; };
+  r.readAsDataURL(f);
+});
+
+on(el.editBanner, "change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > BANNER_MAX_BYTES) { showToast("Banner too big (400KB max)"); e.target.value = ""; return; }
+  const r = new FileReader();
+  r.onload = (ev) => {
+    el.editProfileBanner.style.backgroundImage = `url('${ev.target.result}')`;
+    el.editProfileBanner.style.backgroundSize = "cover";
+    el.editProfileBanner.style.backgroundPosition = "center";
+  };
+  r.readAsDataURL(f);
+});
+
+on(el.saveProfileBtn, "click", async () => {
+  el.profileError.textContent = "";
+  const newName = el.editUsername.value.trim();
+  if (newName.length < 2 || newName.length > 24) return el.profileError.textContent = "Username must be 2–24 chars";
+  const newPronouns = (el.editPronouns.value || "").trim().slice(0, PRONOUNS_MAX);
+  const newBio = el.editBio.value.trim();
+  if (newBio.length > 200) return el.profileError.textContent = "Bio too long (200 max)";
+
+  let newPfp = state.me.pfp;
+  if (el.editPfp.files[0]) {
+    const file = el.editPfp.files[0];
+    if (file.size > 400 * 1024) return el.profileError.textContent = "PFP too big (400KB max)";
+    newPfp = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  let newBanner = state.me.bannerImage;
+  if (el.editBanner.files[0]) {
+    const file = el.editBanner.files[0];
+    if (file.size > BANNER_MAX_BYTES) return el.profileError.textContent = "Banner too big (400KB max)";
+    newBanner = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  try {
+    await update(ref(db, `users/${state.me.uid}`), {
+      username: newName,
+      bio: newBio,
+      pfp: newPfp,
+      pronouns: newPronouns,
+      bannerImage: newBanner
+    });
+    state.me.username = newName;
+    state.me.bio = newBio;
+    state.me.pfp = newPfp;
+    state.me.pronouns = newPronouns;
+    state.me.bannerImage = newBanner;
+    el.myUsernameLabel.textContent = state.me.username;
+    updateMyPfp();
+    state.userCache.set(state.me.uid, {
+      uid: state.me.uid, username: state.me.username, pfp: state.me.pfp,
+      bio: state.me.bio, nameColor: state.me.nameColor, accentColor: state.me.accentColor,
+      status: state.me.status, pronouns: state.me.pronouns, bannerImage: state.me.bannerImage
+    });
+    state.usernameIndex = null;
+    el.editProfileModal.classList.add("hidden");
+    showToast("Profile saved");
+    if (state.roomCode) renderUserList();
+  } catch (e) { el.profileError.textContent = e.message; }
+});
+
+on(el.profileMoreBtn, "click", () => {
+  el.profileMoreMenu.innerHTML = "";
+
+  const editBtn = document.createElement("button");
+  editBtn.textContent = t("editProfile");
+  editBtn.addEventListener("click", () => {
+    el.profileMoreMenuModal.classList.add("hidden");
+    el.profileModal.classList.add("hidden");
+    openEditProfile();
+  });
+  el.profileMoreMenu.appendChild(editBtn);
+
+  const statusBtn = document.createElement("button");
+  statusBtn.textContent = t("status");
+  statusBtn.addEventListener("click", () => {
+    el.profileMoreMenuModal.classList.add("hidden");
+    openStatusModal();
+  });
+  el.profileMoreMenu.appendChild(statusBtn);
+
+  const blockBtn = document.createElement("button");
+  blockBtn.className = "danger";
+  blockBtn.textContent = t("block");
+  blockBtn.addEventListener("click", () => {
+    el.profileMoreMenuModal.classList.add("hidden");
+    openBlockUserModal();
+  });
+  el.profileMoreMenu.appendChild(blockBtn);
+
+  el.profileMoreMenuModal.classList.remove("hidden");
+});
+
+on(el.profileMoreMenuModal, "click", (e) => {
+  if (e.target === el.profileMoreMenuModal) el.profileMoreMenuModal.classList.add("hidden");
+});
+
+function openStatusModal() {
+  el.statusInput.value = state.me.status || "";
+  el.statusModal.classList.remove("hidden");
+  setTimeout(() => el.statusInput.focus(), 50);
+}
+
+on(el.cancelStatusBtn, "click", () => el.statusModal.classList.add("hidden"));
+
+on(el.saveStatusBtn, "click", async () => {
+  const newStatus = (el.statusInput.value || "").slice(0, STATUS_MAX);
+  try {
+    await update(ref(db, `users/${state.me.uid}`), { status: newStatus });
+    state.me.status = newStatus;
+    if (state.userCache.has(state.me.uid)) {
+      const c = state.userCache.get(state.me.uid);
+      c.status = newStatus;
+      state.userCache.set(state.me.uid, c);
+    }
+    el.statusModal.classList.add("hidden");
+    showToast("Status updated");
+    if (state.roomCode) renderUserList();
+  } catch (e) { showToast("Could not update status"); }
+});
+
+function openBlockUserModal() {
+  el.blockUserSelect.innerHTML = "";
+
+  const seen = new Set();
+  const entries = [];
+  for (const uid of Object.keys(state.presenceData || {})) {
+    if (uid === state.me.uid || seen.has(uid)) continue;
+    seen.add(uid);
+    const p = state.userCache.get(uid);
+    entries.push({ uid, name: p?.username || uid.slice(0, 6) });
+  }
+  for (const uid of Object.keys(state.seenData || {})) {
+    if (uid === state.me.uid || seen.has(uid)) continue;
+    seen.add(uid);
+    const p = state.userCache.get(uid);
+    entries.push({ uid, name: p?.username || uid.slice(0, 6) });
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  if (!entries.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No users in this room";
+    el.blockUserSelect.appendChild(opt);
+    el.blockUserSelect.disabled = true;
+  } else {
+    el.blockUserSelect.disabled = false;
+    for (const e of entries) {
+      const opt = document.createElement("option");
+      opt.value = e.uid;
+      opt.textContent = state.blocked.has(e.uid) ? e.name + " (blocked)" : e.name;
+      el.blockUserSelect.appendChild(opt);
+    }
+  }
+
+  el.blockUserModal.classList.remove("hidden");
+}
+
+on(el.cancelBlockBtn, "click", () => el.blockUserModal.classList.add("hidden"));
+
+on(el.confirmBlockBtn, "click", async () => {
+  const uid = el.blockUserSelect.value;
+  if (!uid) return showToast("Pick a user");
+  if (state.blocked.has(uid)) {
+    state.blocked.delete(uid);
+    try { await remove(ref(db, `blocks/${state.me.uid}/${uid}`)); } catch {}
+    showToast("Unblocked");
+  } else {
+    state.blocked.add(uid);
+    try { await set(ref(db, `blocks/${state.me.uid}/${uid}`), true); } catch {}
+    showToast("Blocked (client-side only)");
+  }
+  el.blockUserModal.classList.add("hidden");
+  renderUserList();
+});
+
+on(el.saveProfileColorsBtn, "click", async () => {
+  const nameColor = el.editNameColor.value;
+  const accentColor = el.editAccentColor.value;
+  try {
+    await update(ref(db, `users/${state.me.uid}`), { nameColor, accentColor });
+    state.me.nameColor = nameColor;
+    state.me.accentColor = accentColor;
+    if (state.userCache.has(state.me.uid)) {
+      const c = state.userCache.get(state.me.uid);
+      c.nameColor = nameColor;
+      c.accentColor = accentColor;
+      state.userCache.set(state.me.uid, c);
+    }
+    showToast("Colors saved");
+    if (state.roomCode) renderUserList();
+  } catch (e) { showToast("Could not save colors"); }
 });
 
 let modalUid = null;
@@ -2501,127 +2773,14 @@ function clearDmPendingFile() {
   if (el.dmFilePreviewVideo) el.dmFilePreviewVideo.src = "";
 }
 
-function computeMemberProgress(createdAt) {
-  if (!createdAt) return 0;
-  const created = new Date(createdAt);
-  const now = new Date();
-  const totalSpan = now - created;
-  const maxSpan = 5 * 365 * 24 * 60 * 60 * 1000;
-  return Math.min(100, Math.max(0, (totalSpan / maxSpan) * 100));
-}
-
-on(el.profileBtn, "click", () => {
-  el.editUsername.value = state.me.username;
-  el.editBio.value = state.me.bio;
-  el.editPfp.value = "";
-  if (el.editStatus) el.editStatus.value = state.me.status || "";
-  el.editNameColor.value = state.me.nameColor || "#ffffff";
-  el.editAccentColor.value = state.me.accentColor || "#8c5aff";
-  el.profileError.textContent = "";
-  el.myProfileAvatar.src = state.me.pfp || defaultPfp(state.me.username);
-  el.profileHeroName.textContent = state.me.username;
-  el.profileHeroEmail.textContent = "#" + state.me.uid.slice(0, 6).toLowerCase();
-  el.profileBanner.style.background = state.me.accentColor
-    ? `linear-gradient(135deg, ${state.me.accentColor}, ${state.me.accentColor}88)`
-    : "";
-
-  if (el.profileCustomStatus) {
-    el.profileCustomStatus.textContent = state.me.status || "";
-  }
-
-  if (el.profileBadges) {
-    el.profileBadges.innerHTML = "";
-    const youBadge = document.createElement("span");
-    youBadge.className = "dp-badge you";
-    youBadge.textContent = "YOU";
-    el.profileBadges.appendChild(youBadge);
-    if (isGlobalAdmin()) {
-      const adm = document.createElement("span");
-      adm.className = "dp-badge admin";
-      adm.textContent = "ADMIN";
-      el.profileBadges.appendChild(adm);
-    }
-  }
-
-  const created = state.me.createdAt ? new Date(state.me.createdAt) : new Date();
-  if (el.profileHeroMeta) el.profileHeroMeta.textContent = "Joined " + created.toLocaleDateString();
-  if (el.profileJoinedText) el.profileJoinedText.textContent = created.toLocaleDateString();
-  if (el.profileTodayText) el.profileTodayText.textContent = new Date().toLocaleDateString();
-  if (el.profileProgress) el.profileProgress.style.width = computeMemberProgress(state.me.createdAt) + "%";
-
-  el.profileModal.classList.remove("hidden");
-});
-
-on(el.editPfp, "change", (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = (ev) => { el.myProfileAvatar.src = ev.target.result; };
-  r.readAsDataURL(f);
-});
-
-on(el.editAccentColor, "input", () => {
-  const v = el.editAccentColor.value;
-  el.profileBanner.style.background = `linear-gradient(135deg, ${v}, ${v}88)`;
-});
-
-on(el.editStatus, "input", () => {
-  if (el.profileCustomStatus) {
-    el.profileCustomStatus.textContent = el.editStatus.value;
-  }
-});
-
-on(el.cancelProfileBtn, "click", () => el.profileModal.classList.add("hidden"));
-
-on(el.saveProfileBtn, "click", async () => {
-  el.profileError.textContent = "";
-  const newName = el.editUsername.value.trim();
-  if (newName.length < 2 || newName.length > 24) return el.profileError.textContent = "Username must be 2–24 chars";
-  const newStatus = (el.editStatus ? el.editStatus.value : "").slice(0, STATUS_MAX);
-  let newPfp = state.me.pfp;
-  if (el.editPfp.files[0]) {
-    const file = el.editPfp.files[0];
-    if (file.size > 400 * 1024) return el.profileError.textContent = "PFP too big (400KB max)";
-    newPfp = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-  }
-  const nameColor = el.editNameColor.value;
-  const accentColor = el.editAccentColor.value;
-  try {
-    await update(ref(db, `users/${state.me.uid}`), {
-      username: newName, bio: el.editBio.value.trim(), pfp: newPfp,
-      nameColor, accentColor, status: newStatus
-    });
-    state.me.username = newName;
-    state.me.bio = el.editBio.value.trim();
-    state.me.pfp = newPfp;
-    state.me.nameColor = nameColor;
-    state.me.accentColor = accentColor;
-    state.me.status = newStatus;
-    el.myUsernameLabel.textContent = state.me.username;
-    updateMyPfp();
-    state.userCache.set(state.me.uid, {
-      uid: state.me.uid, username: state.me.username, pfp: state.me.pfp,
-      bio: state.me.bio, nameColor: state.me.nameColor, accentColor: state.me.accentColor,
-      status: state.me.status
-    });
-    state.usernameIndex = null;
-    el.profileModal.classList.add("hidden");
-    showToast("Profile saved");
-    if (state.roomCode) renderUserList();
-  } catch (e) { el.profileError.textContent = e.message; }
-});
-
 on(el.settingsBtn, "click", () => {
   el.themeSelect.value = currentTheme;
   el.languageSelect.value = currentLang;
   el.currentPassword.value = "";
   el.newPassword.value = "";
   el.settingsError.textContent = "";
+  el.editNameColor.value = state.me.nameColor || "#ffffff";
+  el.editAccentColor.value = state.me.accentColor || "#8c5aff";
   buildPresetGrid();
   buildColorGrid();
   el.settingsModal.classList.remove("hidden");
