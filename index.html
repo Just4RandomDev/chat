@@ -198,44 +198,24 @@
 
 <div class="modal-backdrop hidden" id="userProfileModal">
 <div class="modal discord-profile user-card">
-<div class="dp-banner" id="userProfileBanner">
-<button class="dp-more-btn" id="userProfileMoreBtn">⋯</button>
-</div>
+<div class="dp-banner" id="userProfileBanner"></div>
 <div class="dp-body">
 <div class="dp-left">
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="userProfileAvatar" alt="">
-<span class="dp-avatar-status" id="userProfileStatusDot"></span>
 </div>
-<div class="dp-online">
-<span id="userProfileStatusText">Offline</span>
-</div>
-</div>
-<div class="dp-right">
 <div class="dp-custom-status" id="userProfileCustomStatus"></div>
-<div class="dp-header">
-<div class="dp-username" id="userProfileName">—</div>
-<div class="dp-discrim" id="userProfileId">—</div>
-</div>
-<div class="dp-badges" id="userProfileBadges"></div>
 <div class="dp-section">
 <div class="dp-label" data-i18n="bio">Bio</div>
 <div class="dp-bio-display" id="userProfileBio">(no bio)</div>
 </div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="memberSince">Member Since</div>
-<div class="dp-music-row">
-<div class="dp-music-icon">🎵</div>
-<div class="dp-music-info">
-<div class="dp-music-title" id="userProfileMeta">—</div>
-<div class="dp-music-bar"><div class="dp-music-progress" id="userProfileProgress"></div></div>
-<div class="dp-music-times">
-<span id="userProfileJoinedText">Joined</span>
-<span id="userProfileTodayText">Today</span>
 </div>
+<div class="dp-right">
+<div class="dp-header">
+<div class="dp-username" id="userProfileName">—</div>
 </div>
-</div>
-</div>
+<div class="dp-pronouns" id="userProfilePronouns"></div>
+<div class="dp-badges" id="userProfileBadges"></div>
 <div class="modal-actions">
 <button id="userProfileDmBtn" data-i18n="sendDm">Send DM</button>
 <button id="userProfileBlockBtn" data-i18n="block">Block</button>
@@ -249,71 +229,104 @@
 
 <div class="modal-backdrop hidden" id="profileModal">
 <div class="modal discord-profile">
-<div class="dp-banner" id="profileBanner"></div>
+<div class="dp-banner" id="profileBanner">
+<button class="dp-more-btn" id="profileMoreBtn" title="More">⋯</button>
+</div>
 <div class="dp-body">
 <div class="dp-left">
 <div class="profile-avatar-wrap">
 <img class="profile-avatar" id="myProfileAvatar" alt="">
+</div>
+<div class="dp-custom-status" id="profileCustomStatus"></div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="bio">Bio</div>
+<div class="dp-bio-display" id="myProfileBio">(no bio)</div>
+</div>
+</div>
+<div class="dp-right">
+<div class="dp-header">
+<div class="dp-username" id="profileHeroName">—</div>
+</div>
+<div class="dp-pronouns" id="profilePronouns"></div>
+<div class="dp-badges" id="profileBadges"></div>
+<div class="modal-actions">
+<button id="openEditProfileBtn" data-i18n="editProfile">Edit Profile</button>
+<button class="ghost" id="cancelProfileBtn" data-i18n="close">Close</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="editProfileModal">
+<div class="modal discord-profile">
+<div class="dp-banner" id="editProfileBanner">
+<label class="banner-edit-btn" title="Change banner">
+<span class="icon-img" id="editBannerIcon"></span>
+<input type="file" id="editBanner" accept="image/*">
+</label>
+</div>
+<div class="dp-body">
+<div class="dp-left">
+<div class="profile-avatar-wrap">
+<img class="profile-avatar" id="editProfileAvatar" alt="">
 <label class="profile-avatar-edit">
 <span class="icon-img" id="editPfpIcon"></span>
 <input type="file" id="editPfp" accept="image/*">
 </label>
 </div>
-<div class="dp-online">
-<span class="dp-status-dot"></span>
-<span data-i18n="online">Online</span>
-</div>
 </div>
 <div class="dp-right">
-<div class="dp-custom-status" id="profileCustomStatus"></div>
-<div class="dp-header">
-<div class="dp-username" id="profileHeroName">—</div>
-<div class="dp-discrim" id="profileHeroEmail">—</div>
-</div>
-<div class="dp-badges" id="profileBadges"></div>
 <div class="dp-section">
-<div class="dp-label" data-i18n="status">Custom Status</div>
-<input type="text" id="editStatus" maxlength="150" class="dp-input" placeholder="What are you up to?">
+<div class="dp-label" data-i18n="username">Username</div>
+<input type="text" id="editUsername" maxlength="24" class="dp-input">
+</div>
+<div class="dp-section">
+<div class="dp-label">Pronouns</div>
+<input type="text" id="editPronouns" maxlength="32" class="dp-input" placeholder="e.g. he/him">
 </div>
 <div class="dp-section">
 <div class="dp-label" data-i18n="bio">Bio</div>
 <textarea id="editBio" rows="3" maxlength="200" class="dp-bio-edit" placeholder="Tell us about yourself..."></textarea>
 </div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="username">Username</div>
-<input type="text" id="editUsername" maxlength="24" class="dp-input">
-</div>
-<div class="dp-row">
-<div class="dp-section dp-section-half">
-<div class="dp-label" data-i18n="nameColor">Name Color</div>
-<input type="color" id="editNameColor" class="color-input">
-</div>
-<div class="dp-section dp-section-half">
-<div class="dp-label" data-i18n="accentColor">Accent Color</div>
-<input type="color" id="editAccentColor" class="color-input">
-</div>
-</div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="memberSince">Member Since</div>
-<div class="dp-music-row">
-<div class="dp-music-icon">🎵</div>
-<div class="dp-music-info">
-<div class="dp-music-title" id="profileHeroMeta">—</div>
-<div class="dp-music-bar"><div class="dp-music-progress" id="profileProgress"></div></div>
-<div class="dp-music-times">
-<span id="profileJoinedText">Joined</span>
-<span id="profileTodayText">Today</span>
-</div>
-</div>
-</div>
-</div>
 <div class="modal-actions">
 <button id="saveProfileBtn" data-i18n="save">Save</button>
-<button class="ghost" id="cancelProfileBtn" data-i18n="cancel">Cancel</button>
+<button class="ghost" id="cancelEditProfileBtn" data-i18n="cancel">Cancel</button>
 </div>
 <p class="auth-error" id="profileError"></p>
 </div>
 </div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="statusModal">
+<div class="modal">
+<h2 data-i18n="status">Custom Status</h2>
+<label class="field"><span data-i18n="status">Custom Status</span><input type="text" id="statusInput" maxlength="150" placeholder="What are you up to?"></label>
+<div class="modal-actions">
+<button id="saveStatusBtn" data-i18n="save">Save</button>
+<button class="ghost" id="cancelStatusBtn" data-i18n="cancel">Cancel</button>
+</div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="blockUserModal">
+<div class="modal">
+<h2 data-i18n="block">Block</h2>
+<p class="modal-sub">Choose who to block.</p>
+<label class="field"><span data-i18n="username">Username</span>
+<select id="blockUserSelect"></select>
+</label>
+<div class="modal-actions">
+<button class="danger" id="confirmBlockBtn" data-i18n="block">Block</button>
+<button class="ghost" id="cancelBlockBtn" data-i18n="cancel">Cancel</button>
+</div>
+</div>
+</div>
+
+<div class="modal-backdrop hidden" id="profileMoreMenuModal">
+<div class="modal more-modal">
+<div class="more-menu" id="profileMoreMenu"></div>
 </div>
 </div>
 
@@ -405,10 +418,25 @@
 </select>
 </label>
 <hr class="settings-divider">
+<h3 class="settings-sub" data-i18n="colors">Colors</h3>
+<div class="dp-row">
+<div class="dp-section dp-section-half">
+<div class="dp-label" data-i18n="nameColor">Name Color</div>
+<input type="color" id="editNameColor" class="color-input">
+</div>
+<div class="dp-section dp-section-half">
+<div class="dp-label" data-i18n="accentColor">Accent Color</div>
+<input type="color" id="editAccentColor" class="color-input">
+</div>
+</div>
+<div class="modal-actions">
+<button id="saveProfileColorsBtn" data-i18n="save">Save</button>
+</div>
+<hr class="settings-divider">
 <h3 class="settings-sub" data-i18n="presets">Presets</h3>
 <div class="preset-grid" id="presetGrid"></div>
 <hr class="settings-divider">
-<h3 class="settings-sub" data-i18n="colors">Colors</h3>
+<h3 class="settings-sub">UI Colors</h3>
 <div class="color-grid" id="colorGrid"></div>
 <hr class="settings-divider">
 <h3 class="settings-sub" data-i18n="advanced">Advanced</h3>
