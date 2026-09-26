@@ -178,69 +178,53 @@
 <div class="notif-list" id="notifList"><p class="notif-empty" data-i18n="noNotifications">No notifications</p></div>
 </div>
 
-<div class="modal-backdrop hidden" id="userModal">
-<div class="modal">
-<div class="modal-head">
-<img class="modal-pfp" id="modalPfp" alt="">
-<div>
-<div class="modal-name" id="modalName">—</div>
-<div class="modal-bio" id="modalBio">—</div>
-</div>
-</div>
-<div class="modal-actions">
-<button id="modalDmBtn" data-i18n="sendDm">Send DM</button>
-<button id="modalBlockBtn" data-i18n="block">Block</button>
-<button id="modalKickBtn" class="danger hidden" data-i18n="kick">Kick from room</button>
-<button class="ghost" id="modalCloseBtn" data-i18n="close">Close</button>
-</div>
-</div>
-</div>
-
 <div class="modal-backdrop hidden" id="userProfileModal">
-<div class="modal discord-profile user-card">
-<div class="dp-banner" id="userProfileBanner"></div>
-<div class="dp-body">
-<div class="dp-left">
-<div class="profile-avatar-wrap">
-<img class="profile-avatar" id="userProfileAvatar" alt="">
-<span class="dp-avatar-status" id="userProfileStatusDot"></span>
-<span class="dp-avatar-block hidden" id="userProfileBlockBadge"></span>
+<div class="modal dc-profile user-card">
+<div class="dc-banner" id="userProfileBanner"></div>
+<div class="dc-avatar-stack">
+<div class="dc-avatar-wrap">
+<img class="dc-avatar" id="userProfileAvatar" alt="">
+<span class="dc-status-dot" id="userProfileStatusDot"></span>
+<span class="dc-block-badge hidden" id="userProfileBlockBadge">⊘</span>
 </div>
 </div>
-<div class="dp-right">
-<div class="dp-header">
-<div class="dp-username" id="userProfileName">—</div>
+<div class="dc-body">
+<div class="dc-card">
+<div class="dc-head">
+<div class="dc-name" id="userProfileName">—</div>
+<div class="dc-discrim" id="userProfileHandle">@user</div>
 </div>
-<div class="dp-subline">
-<span class="dp-handle" id="userProfileHandle">@user</span>
-<span class="dp-dot-sep">•</span>
-<span class="dp-status-inline" id="userProfileCustomStatus">—</span>
+<div class="dc-custom-status" id="userProfileCustomStatus"></div>
+<div class="dc-badges" id="userProfileBadges"></div>
+<div class="dc-divider"></div>
+<div class="dc-section">
+<div class="dc-section-title">ABOUT ME</div>
+<div class="dc-about" id="userProfileBio">No bio yet.</div>
 </div>
-<div class="dp-badges" id="userProfileBadges"></div>
-<div class="dp-section">
-<div class="dp-bio-display" id="userProfileBio">(no bio)</div>
+<div class="dc-section dc-activity hidden" id="userProfileActivity">
+<div class="dc-section-title" id="userProfileActivityLabel">LISTENING TO SPOTIFY</div>
+<div class="dc-activity-title" id="userProfileActivityTitle">—</div>
+<div class="dc-activity-artist" id="userProfileActivityArtist">—</div>
+<div class="dc-activity-progress">
+<span class="dc-activity-time" id="userProfileActivityCurrent">0:00</span>
+<div class="dc-activity-bar"><div class="dc-activity-fill" id="userProfileActivityFill"></div></div>
+<span class="dc-activity-time" id="userProfileActivityTotal">0:00</span>
 </div>
-<div class="dp-activity hidden" id="userProfileActivity">
-<div class="dp-activity-row">
-<span class="dp-activity-label" id="userProfileActivityLabel">Listening to Spotify</span>
-</div>
-<div class="dp-activity-title" id="userProfileActivityTitle">—</div>
-<div class="dp-activity-progress">
-<span class="dp-activity-time" id="userProfileActivityCurrent">0:00</span>
-<div class="dp-activity-bar"><div class="dp-activity-fill" id="userProfileActivityFill"></div></div>
-<span class="dp-activity-time" id="userProfileActivityTotal">0:00</span>
-</div>
-<div class="dp-activity-controls">
-<span class="dp-ctrl">🔀</span>
-<span class="dp-ctrl">⏮</span>
-<span class="dp-ctrl">⏪</span>
-<span class="dp-ctrl">⏸</span>
-<span class="dp-ctrl">⏩</span>
-<span class="dp-ctrl">⏭</span>
-<span class="dp-ctrl">🔁</span>
+<div class="dc-activity-controls">
+<span class="dc-ctrl">🔀</span>
+<span class="dc-ctrl">⏮</span>
+<span class="dc-ctrl">⏪</span>
+<span class="dc-ctrl">⏸</span>
+<span class="dc-ctrl">⏩</span>
+<span class="dc-ctrl">⏭</span>
+<span class="dc-ctrl">🔁</span>
 </div>
 </div>
-<div class="modal-actions">
+<div class="dc-section">
+<div class="dc-section-title">MEMBER SINCE</div>
+<div class="dc-meta-row" id="userProfileMeta">—</div>
+</div>
+<div class="dc-actions">
 <button id="userProfileDmBtn" data-i18n="sendDm">Send DM</button>
 <button id="userProfileBlockBtn" data-i18n="block">Block</button>
 <button id="userProfileKickBtn" class="danger hidden" data-i18n="kick">Kick from room</button>
@@ -252,30 +236,33 @@
 </div>
 
 <div class="modal-backdrop hidden" id="profileModal">
-<div class="modal discord-profile">
-<div class="dp-banner" id="profileBanner">
-<button class="dp-more-btn" id="profileMoreBtn" title="More">⋯</button>
+<div class="modal dc-profile user-card">
+<div class="dc-banner" id="profileBanner">
+<button class="dc-more-btn" id="profileMoreBtn" title="More">⋯</button>
 </div>
-<div class="dp-body">
-<div class="dp-left">
-<div class="profile-avatar-wrap">
-<img class="profile-avatar" id="myProfileAvatar" alt="">
+<div class="dc-avatar-stack">
+<div class="dc-avatar-wrap">
+<img class="dc-avatar" id="myProfileAvatar" alt="">
 </div>
 </div>
-<div class="dp-right">
-<div class="dp-header">
-<div class="dp-username" id="profileHeroName">—</div>
+<div class="dc-body">
+<div class="dc-card">
+<div class="dc-head">
+<div class="dc-name" id="profileHeroName">—</div>
+<div class="dc-discrim" id="profileHandle">@user</div>
 </div>
-<div class="dp-subline">
-<span class="dp-handle" id="profileHandle">@user</span>
-<span class="dp-dot-sep">•</span>
-<span class="dp-status-inline" id="profileCustomStatus">—</span>
+<div class="dc-custom-status" id="profileCustomStatus"></div>
+<div class="dc-badges" id="profileBadges"></div>
+<div class="dc-divider"></div>
+<div class="dc-section">
+<div class="dc-section-title">ABOUT ME</div>
+<div class="dc-about" id="myProfileBio">No bio yet.</div>
 </div>
-<div class="dp-badges" id="profileBadges"></div>
-<div class="dp-section">
-<div class="dp-bio-display" id="myProfileBio">(no bio)</div>
+<div class="dc-section">
+<div class="dc-section-title">MEMBER SINCE</div>
+<div class="dc-meta-row" id="profileHeroMeta">—</div>
 </div>
-<div class="modal-actions">
+<div class="dc-actions">
 <button id="openEditProfileBtn" data-i18n="editProfile">Edit Profile</button>
 <button class="ghost" id="cancelProfileBtn" data-i18n="close">Close</button>
 </div>
@@ -285,37 +272,33 @@
 </div>
 
 <div class="modal-backdrop hidden" id="editProfileModal">
-<div class="modal discord-profile">
-<div class="dp-banner" id="editProfileBanner">
-<label class="banner-edit-btn" title="Change banner">
+<div class="modal dc-profile">
+<div class="dc-banner" id="editProfileBanner">
+<label class="dc-banner-edit" title="Change banner">
 <span class="icon-img" id="editBannerIcon"></span>
 <input type="file" id="editBanner" accept="image/*">
 </label>
 </div>
-<div class="dp-body">
-<div class="dp-left">
-<div class="profile-avatar-wrap">
-<img class="profile-avatar" id="editProfileAvatar" alt="">
-<label class="profile-avatar-edit">
+<div class="dc-avatar-stack">
+<div class="dc-avatar-wrap">
+<img class="dc-avatar" id="editProfileAvatar" alt="">
+<label class="dc-avatar-edit" title="Change avatar">
 <span class="icon-img" id="editPfpIcon"></span>
 <input type="file" id="editPfp" accept="image/*">
 </label>
 </div>
 </div>
-<div class="dp-right">
-<div class="dp-section">
-<div class="dp-label" data-i18n="username">Username</div>
-<input type="text" id="editUsername" maxlength="24" class="dp-input">
+<div class="dc-body">
+<div class="dc-card">
+<div class="dc-section">
+<div class="dc-section-title">USERNAME</div>
+<input type="text" id="editUsername" maxlength="24" class="dc-input">
 </div>
-<div class="dp-section">
-<div class="dp-label">Pronouns</div>
-<input type="text" id="editPronouns" maxlength="32" class="dp-input" placeholder="e.g. he/him">
+<div class="dc-section">
+<div class="dc-section-title">ABOUT ME</div>
+<textarea id="editBio" rows="3" maxlength="200" class="dc-textarea" placeholder="Tell us about yourself..."></textarea>
 </div>
-<div class="dp-section">
-<div class="dp-label" data-i18n="bio">Bio</div>
-<textarea id="editBio" rows="3" maxlength="200" class="dp-bio-edit" placeholder="Tell us about yourself..."></textarea>
-</div>
-<div class="modal-actions">
+<div class="dc-actions">
 <button id="saveProfileBtn" data-i18n="save">Save</button>
 <button class="ghost" id="cancelEditProfileBtn" data-i18n="cancel">Cancel</button>
 </div>
