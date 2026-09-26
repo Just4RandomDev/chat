@@ -67,7 +67,6 @@
 <span data-i18n="offline">Offline</span> — <span id="offlineCount">0</span>
 </div>
 <div class="user-list" id="offlineList"></div>
-
 <div class="side-title hidden" id="adminPanelTitle">Moderator Tools</div>
 <div class="side-admin hidden" id="adminPanel">
 <button id="kickPanelBtn">Manage Kicked</button>
@@ -94,6 +93,8 @@
 </div>
 </div>
 
+<button class="scroll-bottom-btn hidden" id="scrollBottomChat" title="Scroll to bottom">↓</button>
+
 <div class="input-area">
 <div class="reply-bar hidden" id="replyBar">
 <div class="reply-bar-text">
@@ -111,7 +112,7 @@
 <button id="filePreviewRemove">✕</button>
 </div>
 </div>
-<div class="input-row" style="position:relative;">
+<div class="input-row">
 <input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled autocomplete="off">
 <div class="mention-autocomplete hidden" id="mentionAutocomplete"></div>
 <label class="file-label" id="fileLabel" title="Attach">
@@ -135,6 +136,7 @@
 <p data-i18n="noMessages">No messages yet</p>
 </div>
 </div>
+<button class="scroll-bottom-btn hidden" id="scrollBottomDm" title="Scroll to bottom">↓</button>
 <div class="dm-input-area">
 <div class="reply-bar hidden" id="dmReplyBar">
 <div class="reply-bar-text">
@@ -194,8 +196,58 @@
 </div>
 </div>
 
+<div class="modal-backdrop hidden" id="userProfileModal">
+<div class="modal discord-profile user-card">
+<div class="dp-banner" id="userProfileBanner"></div>
+<div class="dp-body">
+<div class="dp-left">
+<div class="profile-avatar-wrap">
+<img class="profile-avatar" id="userProfileAvatar" alt="">
+</div>
+<div class="dp-online">
+<span class="dp-status-dot" id="userProfileStatusDot"></span>
+<span id="userProfileStatusText">Offline</span>
+</div>
+</div>
+<div class="dp-right">
+<div class="dp-header">
+<div class="dp-username" id="userProfileName">—</div>
+<div class="dp-discrim" id="userProfileId">—</div>
+</div>
+<div class="dp-badges" id="userProfileBadges"></div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="bio">Bio</div>
+<div class="dp-bio-display" id="userProfileBio">(no bio)</div>
+</div>
+<div class="dp-section">
+<div class="dp-label" data-i18n="memberSince">Member Since</div>
+<div class="dp-music-row">
+<div class="dp-music-icon">🎵</div>
+<div class="dp-music-info">
+<div class="dp-music-title" id="userProfileMeta">—</div>
+<div class="dp-music-bar">
+<div class="dp-music-progress" id="userProfileProgress"></div>
+</div>
+<div class="dp-music-times">
+<span id="userProfileJoinedText">Joined</span>
+<span id="userProfileTodayText">Today</span>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-actions">
+<button id="userProfileDmBtn" data-i18n="sendDm">Send DM</button>
+<button id="userProfileBlockBtn" data-i18n="block">Block</button>
+<button id="userProfileKickBtn" class="danger hidden" data-i18n="kick">Kick from room</button>
+<button class="ghost" id="userProfileCloseBtn" data-i18n="close">Close</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
 <div class="modal-backdrop hidden" id="profileModal">
-<div class="modal profile-modal discord-profile">
+<div class="modal discord-profile">
 <div class="dp-banner" id="profileBanner"></div>
 <div class="dp-body">
 <div class="dp-left">
@@ -216,6 +268,7 @@
 <div class="dp-username" id="profileHeroName">—</div>
 <div class="dp-discrim" id="profileHeroEmail">—</div>
 </div>
+<div class="dp-badges" id="profileBadges"></div>
 <div class="dp-section">
 <div class="dp-label" data-i18n="bio">Bio</div>
 <textarea id="editBio" rows="3" maxlength="200" class="dp-bio-edit" placeholder="Tell us about yourself..."></textarea>
@@ -236,7 +289,19 @@
 </div>
 <div class="dp-section">
 <div class="dp-label" data-i18n="memberSince">Member Since</div>
-<div id="profileHeroMeta" class="dp-member-since">—</div>
+<div class="dp-music-row">
+<div class="dp-music-icon">🎵</div>
+<div class="dp-music-info">
+<div class="dp-music-title" id="profileHeroMeta">—</div>
+<div class="dp-music-bar">
+<div class="dp-music-progress" id="profileProgress"></div>
+</div>
+<div class="dp-music-times">
+<span id="profileJoinedText">Joined</span>
+<span id="profileTodayText">Today</span>
+</div>
+</div>
+</div>
 </div>
 <div class="modal-actions">
 <button id="saveProfileBtn" data-i18n="save">Save</button>
@@ -394,6 +459,7 @@
 <div class="modal-backdrop hidden" id="reactionPickerModal">
 <div class="modal reaction-modal">
 <h2 data-i18n="pickReaction">Pick a reaction</h2>
+<input type="text" id="reactionSearch" class="reaction-search" placeholder="Search emojis…">
 <div class="reaction-picker" id="reactionPicker"></div>
 <div class="modal-actions">
 <button class="ghost" id="cancelReactionPicker">Cancel</button>
