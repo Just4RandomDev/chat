@@ -11,12 +11,21 @@ export const MSG_MAX = 100;
 export const AUTO_CLEAN_MS = 60 * 1000;
 export const PRESENCE_STALE_MS = 2 * 60 * 1000;
 export const HEARTBEAT_MS = 30 * 1000;
-export const SPAM_WINDOW_MS = 5000;
-export const SPAM_MAX = 10;
 export const STATUS_MAX = 150;
 export const BANNER_MAX_BYTES = 400 * 1024;
 export const PFP_MAX_BYTES = 400 * 1024;
 export const FILE_MAX_BYTES = 1.5 * 1024 * 1024;
+
+// SPAM — progressive escalation
+export const SPAM_WINDOW_MS = 5000;
+export const SPAM_TIERS = [
+  { threshold: 6,  muteMs: 0,      label: "Slow down" },
+  { threshold: 8,  muteMs: 10000,  label: "Muted 10s" },
+  { threshold: 10, muteMs: 30000,  label: "Muted 30s" },
+  { threshold: 12, muteMs: 60000,  label: "Muted 60s" }
+];
+export const SPAM_DECAY_MS = 60000;
+export const SPAM_CLEAN_MS = 30000;
 
 export const ICON_PATHS = {
   bell:      `M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z`,
