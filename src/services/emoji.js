@@ -1,5 +1,5 @@
 // EMOJI SERVICE
-// All emoji logic: keywords, recents, favorites, skin tones, custom emojis.
+// Keywords, recents, favorites, skin tones, custom emojis.
 
 import { ref, get, push, set, remove, onValue } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
@@ -10,20 +10,12 @@ import { loadJson } from "../core/helpers.js";
 // DATA
 
 
-// Unicode emoji categories (from data/emojis.json)
 let categories = [];
-
-// keyword -> emoji string (from data/emoji-keywords.json)
 let keywordMap = {};
 
-// Skin tone variants.
-// Index 0 = default (no modifier), 1..5 = the five Fitzpatrick modifiers.
-// We map a base emoji to a function that produces the toned version.
 const SKIN_TONES = ["", "\u{1F3FB}", "\u{1F3FC}", "\u{1F3FD}", "\u{1F3FE}", "\u{1F3FF}"];
 const SKIN_TONE_LABELS = ["Default", "Light", "Medium-Light", "Medium", "Medium-Dark", "Dark"];
 
-// Base emojis that support skin tones. Only the ones most people use.
-// Mapping: base emoji -> the modifier gets appended right after it.
 const TONE_CAPABLE = new Set([
   "👋","🤚","🖐️","✋","🖖",
   "👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙",
@@ -38,18 +30,17 @@ const TONE_CAPABLE = new Set([
   "⛹️","🏋️","🚴","🚵","🤸","🤼","🤽","🤾","🤹","🧘","🛀","🛌"
 ]);
 
-// Custom emojis (loaded per-context)
-let globalCustom = [];        // [{ id, name, dataUrl, ... }]
-let roomCustom = [];          // [{ id, name, dataUrl, ... }]
+let globalCustom = [];
+let roomCustom = [];
 let customUnsubGlobal = null;
 let customUnsubRoom = null;
+let customListeners = new Set();
 
 
 // INIT
 
 
 export async function initEmoji() {
-  // Categories
   try {
     const data = await loadJson("data/emojis.json");
     categories = Array.isArray(data.categories) ? data.categories : [];
@@ -57,7 +48,6 @@ export async function initEmoji() {
     categories = [];
   }
 
-  // Keyword map
   try {
     keywordMap = await loadJson("data/emoji-keywords.json");
     if (!keywordMap || typeof keywordMap !== "object") keywordMap = {};
@@ -66,12 +56,10 @@ export async function initEmoji() {
   }
 }
 
-export function getCategories() {
-  return categories;
-}
+export function getCategories() { return categories; }
 
 
-// RECENTS & FAVORITES (localStorage, per-browser)
+// RECENTS & FAVORITES
 
 
 const RECENTS_KEY = "emoji.recents";
@@ -82,32 +70,22 @@ function readList(key) {
   try {
     const v = JSON.parse(localStorage.getItem(key) || "[]");
     return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 function writeList(key, list) {
   try { localStorage.setItem(key, JSON.stringify(list.slice(0, 200))); } catch {}
 }
 
-export function getRecents() {
-  return readList(RECENTS_KEY);
-}
+export function getRecents() { return readList(RECENTS_KEY); }
+export function getFavorites() { return readList(FAVORITES_KEY); }
+export function isFavorite(e) { return readList(FAVORITES_KEY).includes(e); }
 
 export function pushRecent(emoji) {
   if (!emoji) return;
   const list = readList(RECENTS_KEY).filter(e => e !== emoji);
   list.unshift(emoji);
   writeList(RECENTS_KEY, list.slice(0, RECENTS_MAX));
-}
-
-export function getFavorites() {
-  return readList(FAVORITES_KEY);
-}
-
-export function isFavorite(emoji) {
-  return readList(FAVORITES_KEY).includes(emoji);
 }
 
 export function toggleFavorite(emoji) {
@@ -125,26 +103,18 @@ export function toggleFavorite(emoji) {
 }
 
 
-// SEARCH
+// SEGMENTATION
 
 
-const MAX_RESULTS = 60;
-
-// Split a string of emojis into an array. Handles ZWJ sequences and
-// variation selectors so we don't slice through the middle of a family.
 export function splitEmojiString(s) {
   if (!s) return [];
   const result = [];
-  const segmenter = ("Segmenter" in Intl)
-    ? new Intl.Segmenter("en", { granularity: "grapheme" })
-    : null;
-
-  if (segmenter) {
-    for (const { segment } of segmenter.segment(s)) {
+  if ("Segmenter" in Intl) {
+    const seg = new Intl.Segmenter("en", { granularity: "grapheme" });
+    for (const { segment } of seg.segment(s)) {
       if (segment && segment.trim()) result.push(segment);
     }
   } else {
-    // Fallback: naive split (works for the vast majority).
     for (const ch of Array.from(s)) {
       if (ch && ch.trim()) result.push(ch);
     }
@@ -152,14 +122,17 @@ export function splitEmojiString(s) {
   return result;
 }
 
-// Search by keyword. Returns a deduped, ordered array of emoji strings.
+
+// SEARCH
+
+
+const MAX_RESULTS = 60;
+
 export function searchEmoji(query) {
   const q = (query || "").trim().toLowerCase();
   if (!q) return [];
 
-  // Normalize: strip spaces so "ice cream" becomes "icecream".
   const normalized = q.replace(/\s+/g, "");
-
   const seen = new Set();
   const out = [];
 
@@ -173,30 +146,18 @@ export function searchEmoji(query) {
     return false;
   };
 
-  // 1. Exact key match first.
-  if (keywordMap[normalized]) {
-    if (addAll(keywordMap[normalized])) return out;
-  }
+  if (keywordMap[normalized] && addAll(keywordMap[normalized])) return out;
 
-  // 2. Prefix matches on keys.
   const prefixKeys = Object.keys(keywordMap)
     .filter(k => k !== normalized && k.startsWith(normalized))
     .sort((a, b) => a.length - b.length);
+  for (const k of prefixKeys) if (addAll(keywordMap[k])) return out;
 
-  for (const k of prefixKeys) {
-    if (addAll(keywordMap[k])) return out;
-  }
-
-  // 3. Substring matches on keys (weaker signal, added last).
   const substringKeys = Object.keys(keywordMap)
     .filter(k => k !== normalized && !k.startsWith(normalized) && k.includes(normalized))
     .sort((a, b) => a.length - b.length);
+  for (const k of substringKeys) if (addAll(keywordMap[k])) return out;
 
-  for (const k of substringKeys) {
-    if (addAll(keywordMap[k])) return out;
-  }
-
-  // 4. Custom emojis whose name matches.
   const customMatches = [
     ...globalCustom.filter(c => c.name.toLowerCase().includes(normalized)),
     ...roomCustom.filter(c => c.name.toLowerCase().includes(normalized))
@@ -213,53 +174,42 @@ export function searchEmoji(query) {
 // SKIN TONES
 
 
-export function supportsSkinTone(emoji) {
-  return TONE_CAPABLE.has(emoji);
-}
+export function supportsSkinTone(emoji) { return TONE_CAPABLE.has(emoji); }
+export function getSkinToneLabels() { return SKIN_TONE_LABELS; }
+export function getSkinToneCount() { return SKIN_TONES.length; }
 
 export function applySkinTone(emoji, toneIndex) {
   if (toneIndex <= 0) return emoji;
   const modifier = SKIN_TONES[toneIndex];
   if (!modifier) return emoji;
 
-  // If emoji already has a tone applied, strip it first.
   let base = emoji;
   for (const t of SKIN_TONES.slice(1)) {
     base = base.split(t).join("");
   }
-
-  // Insert modifier right after the base (before any ZWJ/variation selector).
   return base + modifier;
 }
 
-export function getSkinToneLabels() {
-  return SKIN_TONE_LABELS;
-}
 
-export function getSkinToneCount() {
-  return SKIN_TONES.length;
-}
-
-
-// CUSTOM EMOJIS (global + per-room)
+// CUSTOM EMOJIS
 
 
 export function startCustomEmojiListeners(roomCode) {
   stopCustomEmojiListeners();
 
-  // Global
-  const globalRef = ref(db, "customEmojis");
-  customUnsubGlobal = onValue(globalRef, (snap) => {
+  const gRef = ref(db, "customEmojis");
+  customUnsubGlobal = onValue(gRef, (snap) => {
     const data = snap.val() || {};
     globalCustom = Object.entries(data).map(([id, v]) => ({ id, ...v }));
+    notifyCustomListeners();
   });
 
-  // Per-room (if any)
   if (roomCode) {
-    const roomRef = ref(db, `rooms/${roomCode}/customEmojis`);
-    customUnsubRoom = onValue(roomRef, (snap) => {
+    const rRef = ref(db, `rooms/${roomCode}/customEmojis`);
+    customUnsubRoom = onValue(rRef, (snap) => {
       const data = snap.val() || {};
       roomCustom = Object.entries(data).map(([id, v]) => ({ id, ...v }));
+      notifyCustomListeners();
     });
   }
 }
@@ -271,11 +221,21 @@ export function stopCustomEmojiListeners() {
   roomCustom = [];
 }
 
+export function onCustomEmojisChanged(fn) {
+  customListeners.add(fn);
+  return () => customListeners.delete(fn);
+}
+
+function notifyCustomListeners() {
+  for (const fn of customListeners) {
+    try { fn(); } catch (e) { console.warn(e); }
+  }
+}
+
 export function getGlobalCustom() { return globalCustom.slice(); }
 export function getRoomCustom() { return roomCustom.slice(); }
 export function getAllCustom() { return [...globalCustom, ...roomCustom]; }
 
-// scope: "global" | "room"
 export async function addCustomEmoji({ name, dataUrl, scope }) {
   if (!state.me) throw new Error("Not logged in");
   if (!name || !dataUrl) throw new Error("Missing name or image");
@@ -307,48 +267,50 @@ export async function deleteCustomEmoji(id, scope) {
   await remove(ref(db, path));
 }
 
-// Replace :name: tokens in a plaintext message with placeholder markers.
-// Returns { text, customImages } where customImages maps name -> dataUrl.
-export function extractCustomEmojiTokens(plainText) {
-  const map = new Map();
+
+// :name: REPLACEMENT
+
+
+// Replace :name: tokens with a marker that renderCustomAndText can consume.
+// Returns { parts } where each part is either {type:"text", value} or
+// {type:"custom", name, dataUrl}.
+export function tokenizeCustomEmojis(plainText) {
+  if (!plainText) return [{ type: "text", value: "" }];
+
   const all = getAllCustom();
-
-  const replaced = plainText.replace(/:([a-z0-9_]{2,24}):/gi, (match, name) => {
-    const lower = name.toLowerCase();
-    const found = all.find(c => c.name === lower);
-    if (!found) return match;
-    map.set(lower, found.dataUrl);
-    return `\u0000CUSTOM:${lower}\u0000`;
-  });
-
-  return { text: replaced, customImages: map };
-}
-
-// Given a text with \u0000CUSTOM:name\u0000 markers and a map of name->dataUrl,
-// return an array of nodes/text tokens ready to append to the DOM.
-export function renderCustomEmojiTokens(text, customImages) {
+  const byName = new Map(all.map(c => [c.name, c]));
   const parts = [];
-  const re = /\u0000CUSTOM:([a-z0-9_]{2,24})\u0000/gi;
+  const re = /:([a-z0-9_]{2,24}):/gi;
   let last = 0, m;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push({ type: "text", value: text.slice(last, m.index) });
+
+  while ((m = re.exec(plainText)) !== null) {
     const name = m[1].toLowerCase();
-    const url = customImages.get(name);
-    if (url) parts.push({ type: "custom", name, url });
-    else parts.push({ type: "text", value: m[0] });
+    const found = byName.get(name);
+    if (!found) continue; // leave literal :name: in place
+
+    if (m.index > last) {
+      parts.push({ type: "text", value: plainText.slice(last, m.index) });
+    }
+    parts.push({ type: "custom", name, dataUrl: found.dataUrl });
     last = re.lastIndex;
   }
-  if (last < text.length) parts.push({ type: "text", value: text.slice(last) });
+
+  if (last < plainText.length) {
+    parts.push({ type: "text", value: plainText.slice(last) });
+  }
+
   return parts;
 }
 
-
-// FALLBACK — name search across categories
-
-
-// If the keyword map fails to load, we fall back to matching the
-// query against... nothing useful (categories have no names per-emoji).
-// But at least we return an empty array cleanly.
-export function hasKeywordMap() {
-  return Object.keys(keywordMap).length > 0;
+export function hasCustomEmojiTokens(plainText) {
+  if (!plainText) return false;
+  const all = getAllCustom();
+  if (!all.length) return false;
+  const names = new Set(all.map(c => c.name));
+  const re = /:([a-z0-9_]{2,24}):/gi;
+  let m;
+  while ((m = re.exec(plainText)) !== null) {
+    if (names.has(m[1].toLowerCase())) return true;
+  }
+  return false;
 }
