@@ -278,10 +278,12 @@ export async function openUserProfile(uid, opts = {}) {
   if (!uid) return;
   state.viewedUid = uid;
 
+  const isBotUser = uid === "system";
+
   const p = await fetchUser(uid);
   const isSelf = uid === state.me.uid;
   const isAdminUser = state.admins.includes(uid);
-  const isOnline = !!(state.presenceData && state.presenceData[uid]);
+  const isOnline = !!(state.presenceData && state.presenceData[uid]) || isBotUser;
   const isBlockedUser = isBlocked(uid);
 
   $("userProfileAvatar").src = p.pfp || defaultPfp(p.username);
@@ -312,6 +314,15 @@ export async function openUserProfile(uid, opts = {}) {
     b.textContent = "ADMIN";
     badges.appendChild(b);
   }
+  if (isBotUser) {
+    const b = document.createElement("span");
+    b.className = "dc-badge";
+    b.style.background = "#5865f2";
+    b.style.color = "#fff";
+    b.style.borderColor = "transparent";
+    b.textContent = "BOT";
+    badges.appendChild(b);
+  }
   if (isOnline) {
     const b = document.createElement("span");
     b.className = "dc-badge online";
@@ -319,12 +330,12 @@ export async function openUserProfile(uid, opts = {}) {
     badges.appendChild(b);
   }
 
-  $("userProfileDmBtn").style.display = isSelf ? "none" : "";
-  $("userProfileBlockBtn").style.display = isSelf ? "none" : "";
+  $("userProfileDmBtn").style.display = (isSelf || isBotUser) ? "none" : "";
+  $("userProfileBlockBtn").style.display = (isSelf || isBotUser) ? "none" : "";
   $("userProfileBlockBtn").textContent = isBlockedUser ? "Unblock" : t("block");
 
   const kickBtn = $("userProfileKickBtn");
-  const canKickHere = !isSelf && opts.canKick?.();
+  const canKickHere = !isSelf && !isBotUser && opts.canKick?.();
   kickBtn.classList.toggle("hidden", !canKickHere);
 
   $("userProfileModal").classList.remove("hidden");
