@@ -3,8 +3,43 @@
 import { ref, get } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
 import { BOT_UID } from "../core/constants.js";
+import { loadJson } from "../core/helpers.js";
 
 const cache = new Map();
+
+// Bot profile — loaded once from data/bot.json at boot.
+const botProfile = {
+  name: "IlloComoVamos",
+  bio: "System bot",
+  pfp: "",
+  nameColor: "",
+  status: ""
+};
+
+export async function loadBotProfile() {
+  try {
+    const data = await loadJson("data/bot.json");
+    if (data && typeof data === "object") {
+      if (typeof data.name === "string" && data.name.trim()) {
+        botProfile.name = data.name.trim().slice(0, 24);
+      }
+      if (typeof data.bio === "string") {
+        botProfile.bio = data.bio.slice(0, 200);
+      }
+      if (typeof data.pfp === "string") {
+        botProfile.pfp = data.pfp.trim();
+      }
+      if (typeof data.nameColor === "string") {
+        botProfile.nameColor = data.nameColor.trim();
+      }
+      if (typeof data.status === "string") {
+        botProfile.status = data.status.slice(0, 150);
+      }
+    }
+  } catch {
+    // No bot.json — use defaults. Not an error.
+  }
+}
 
 export function defaultPfp(name) {
   const letter = (name || "?").trim().charAt(0).toUpperCase();
@@ -46,12 +81,12 @@ export async function fetchUser(uid) {
   if (uid === BOT_UID) {
     return {
       uid: BOT_UID,
-      username: "IlloComoVamos",
-      pfp: botPfp(),
-      bio: "System bot",
-      nameColor: "",
+      username: botProfile.name,
+      pfp: botProfile.pfp || botPfp(),
+      bio: botProfile.bio,
+      nameColor: botProfile.nameColor,
       accentColor: "",
-      status: "",
+      status: botProfile.status,
       bannerImage: "",
       createdAt: null
     };
