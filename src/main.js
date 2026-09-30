@@ -508,7 +508,7 @@ async function boot() {
     startSweeper(profile);
 
     EmojiService.startCustomEmojiListeners(null);
-  });
+  };
 }
 
 boot().catch(e => console.error("[boot]", e));
