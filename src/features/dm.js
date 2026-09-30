@@ -94,6 +94,9 @@ export function initDm() {
       }
     }
   });
+
+  // The DM emoji button (#dmEmojiBtn) is wired by chat.js
+  // via wireMessageEmojiPopover(). Do not attach a listener here.
 }
 
 export async function openDmPanel(otherUid) {
@@ -106,6 +109,7 @@ export async function openDmPanel(otherUid) {
   $("dmInput").disabled = false;
   $("dmFileInput").disabled = false;
   $("dmSendBtn").disabled = false;
+  $("dmEmojiBtn") && ($("dmEmojiBtn").disabled = false);
   $("dmHeadTitle").textContent = "DM with " + other.username;
   $("dmHeadTitle").style.color = other.nameColor || "";
 
@@ -181,6 +185,7 @@ function closeDmPanel() {
   $("dmInput").disabled = true;
   $("dmFileInput").disabled = true;
   $("dmSendBtn").disabled = true;
+  $("dmEmojiBtn") && ($("dmEmojiBtn").disabled = true);
   $("dmHeadTitle").style.color = "";
   resetDmUI();
 }
