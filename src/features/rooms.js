@@ -169,6 +169,7 @@ export async function enterRoom(code, roomMeta) {
     // Custom emojis: restart listeners with the room code so per-room
     // emojis are picked up. Global ones are always loaded.
     window.__illoStartCustomEmojiListeners?.(code);
+    window.__illoStartRoomRoleListeners?.(code);
 
     $("chatHeadTitle").textContent = "# " + (roomMeta.name || code);
     $("chatHeadLock").classList.toggle("hidden", !roomMeta.hasPassword);
@@ -282,6 +283,7 @@ export async function leaveRoom(opts = {}) {
 
   // Reset custom emoji listeners to global-only
   window.__illoStartCustomEmojiListeners?.(null);
+  window.__illoStartRoomRoleListeners?.(null);
 
   resetRoomState();
 }
