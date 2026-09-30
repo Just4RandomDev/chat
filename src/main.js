@@ -17,6 +17,7 @@ import { startSweeper, stopSweeper } from "./services/sweeper.js";
 import { sendBotMessage } from "./services/bot.js";
 import { resetSpamState } from "./services/spam.js";
 import * as EmojiService from "./services/emoji.js";
+import * as RolesService from "./services/roles.js";
 
 import { initAppearance, applyAppearance, buildPresetGrid, buildColorGrid } from "./features/appearance.js";
 import { initNotifications, startNotificationListener, stopNotificationListener, pushNotification } from "./features/notifications.js";
@@ -472,13 +473,15 @@ async function boot() {
   resetChatUI();
   resetDmUI();
 
-  initAuth(async (profile) => {
     if (!profile) {
       state.me = null;
       stopNotificationListener();
       stopSweeper();
       stopLobbyListener();
       resetSpamState();
+      RolesService.stopGlobalListeners();
+      RolesService.stopRoomListeners();
+
       $("authScreen")?.classList.remove("hidden");
       $("appRoot")?.classList.add("hidden");
       return;
@@ -487,6 +490,7 @@ async function boot() {
     state.me = profile;
     initUsers(profile);
     primeCache(profile);
+    RolesService.initRoles(profile);
 
     $("myUsernameLabel").textContent = profile.username;
     updateMyPfp();
