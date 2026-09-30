@@ -7,8 +7,6 @@ import { $, on, esc, applyIconMask } from "../core/dom.js";
 import {
   BOT_UID,
   GROUP_MS,
-  SPAM_MAX,
-  SPAM_WINDOW_MS,
   FILE_MAX_BYTES,
   URL_RE
 } from "../core/constants.js";
@@ -18,6 +16,7 @@ import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
 import { fetchUser, defaultPfp } from "../services/user-cache.js";
 import { sendBotMessage } from "../services/bot.js";
+import { spamCheck as spamCheckService } from "../services/spam.js";
 import { isBlocked } from "./users.js";
 import { pushNotification } from "./notifications.js";
 import { hideAutocomplete } from "./mentions.js";
@@ -31,7 +30,6 @@ export function initChat(categories, hooks) {
 
   on($("sendBtn"), "click", sendMessage);
   on($("messageInput"), "keydown", (e) => {
-    // Mentions module handles Enter when its popup is open (stopImmediatePropagation).
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -149,19 +147,6 @@ function renderFilePreview(payload, isDm) {
   (isDm ? $("dmInput") : $("messageInput")).focus();
 }
 
-// MESSAGE SENDING
-
-export function spamCheck() {
-  const now = Date.now();
-  state.spamTracker = state.spamTracker.filter(ts => now - ts < SPAM_WINDOW_MS);
-  if (state.spamTracker.length >= SPAM_MAX) {
-    window.__illoToast?.(t("spamWarning"));
-    return false;
-  }
-  state.spamTracker.push(now);
-  return true;
-}
-
 export async function sendMessage() {
   if (!state.roomCode || !state.roomRef) {
     return window.__illoToast?.("Join a room first");
@@ -170,7 +155,12 @@ export async function sendMessage() {
   const rawText = $("messageInput").value.trim();
   const hasMedia = !!state.pendingFile;
   if (!rawText && !hasMedia) return window.__illoToast?.("Nothing to send");
-  if (!spamCheck()) return;
+
+  const spam = spamCheckService();
+  if (!spam.ok) {
+    if (spam.message) window.__illoToast?.(spam.message);
+    return;
+  }
 
   const replyPayload = state.reply ? {
     uid: state.reply.uid,
@@ -273,8 +263,6 @@ function handleBotCommands(rawText) {
   }
 }
 
-// MESSAGE RENDERING
-
 export async function renderMessage(container, msgId, msg, isOwn, isDm) {
   if (!isDm && msg.dmKey) return;
   if (isDm && !msg.dmKey) return;
@@ -292,14 +280,10 @@ export async function renderMessage(container, msgId, msg, isOwn, isDm) {
   const withinWindow = (now - groupTime) < GROUP_MS;
 
   let plainText = "";
-  let decryptFailed = false;
   if (msg.text) {
     const key = msg.dmKey || state.roomCode;
     plainText = decryptText(msg.text, key);
-    if (plainText === null) {
-      decryptFailed = true;
-      plainText = "[could not decrypt]";
-    }
+    if (plainText === null) plainText = "[could not decrypt]";
   }
 
   const mentionsEveryone = hasEveryone(plainText);
@@ -562,8 +546,6 @@ function renderTextWithMentions(parent, text) {
   }
 }
 
-// REACTIONS
-
 export async function toggleReaction(msgId, emoji, isDm) {
   if (!state.me) return;
   const path = isDm
@@ -630,8 +612,6 @@ function selectReaction(emoji) {
   toggleReaction(msgId, emoji, isDm);
   state.reactionTarget = null;
 }
-
-// MORE MENU
 
 function openMoreMenu(msgId, msg, isOwn, isDm, sender, plainText) {
   const menu = $("moreMenu");
