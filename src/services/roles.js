@@ -144,7 +144,7 @@ function startGlobalListeners() {
   });
 }
 
-function stopGlobalListeners() {
+export function stopGlobalListeners() {
   if (unsubGlobalRoles) { try { unsubGlobalRoles(); } catch {} unsubGlobalRoles = null; }
   if (unsubGlobalAssignments) { try { unsubGlobalAssignments(); } catch {} unsubGlobalAssignments = null; }
 }
