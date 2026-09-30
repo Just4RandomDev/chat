@@ -16,6 +16,7 @@ import { fetchUser, primeCache, updateCached, loadBotProfile } from "./services/
 import { startSweeper, stopSweeper } from "./services/sweeper.js";
 import { sendBotMessage } from "./services/bot.js";
 import { resetSpamState } from "./services/spam.js";
+import * as EmojiService from "./services/emoji.js";
 
 import { initAppearance, applyAppearance, buildPresetGrid, buildColorGrid } from "./features/appearance.js";
 import { initNotifications, startNotificationListener, stopNotificationListener, pushNotification } from "./features/notifications.js";
@@ -43,8 +44,6 @@ import {
 import { initAdminUI, updateAdminUI } from "./features/admin.js";
 
 // GLOBAL HOOKS (avoid circular imports)
-// These are assigned here so features can call each other without import cycles.
-
 window.__illoToast = showToast;
 window.__illoFetchUser = fetchUser;
 window.__illoIsBlocked = isBlocked;
@@ -59,6 +58,8 @@ window.__illoCanKick = canKick;
 window.__illoAdminKick = adminKick;
 window.__illoRequestJoinRoom = requestJoinRoom;
 window.__illoState = state;
+window.__illoEmojiService = EmojiService;
+window.__illoStartCustomEmojiListeners = EmojiService.startCustomEmojiListeners;
 
 // TRANSLATIONS + EMOJIS + ADMINS
 
@@ -144,11 +145,9 @@ function showRoomView() {
 
 function updateMyPfp() {
   if ($("myPfpBtn") && state.me) {
-    $("myPfpBtn").src = state.me.pfp || window.__illoDefaultPfp?.(state.me.username) || "";
+    $("myPfpBtn").src = state.me.pfp || "";
   }
 }
-
-// ROOM EVENTS
 
 function onRoomJoined(code, roomMeta) {
   showRoomView();
@@ -158,17 +157,6 @@ function onRoomJoined(code, roomMeta) {
 function onRoomLeft() {
   showLobbyView();
 }
-
-async function handleBackToLobby() {
-  try { closeDm(); } catch {}
-  await leaveRoom();
-  resetChatUI();
-  resetDmUI();
-  resetDmLocalState();
-  showLobbyView();
-}
-
-// AUTH UI
 
 function initAuthUI() {
   on($("tabLogin"), "click", () => {
@@ -214,8 +202,6 @@ function initAuthUI() {
     await logout();
   });
 }
-
-// PROFILE UI
 
 function initProfileUI() {
   on($("profileBtn"), "click", () => openMyProfile({ isGlobalAdmin }));
@@ -421,8 +407,6 @@ function openBlockUserModal() {
   $("blockUserModal").classList.remove("hidden");
 }
 
-// SETTINGS UI
-
 function initSettingsUI() {
   on($("settingsBtn"), "click", () => {
     $("themeSelect").value = getTheme();
@@ -468,8 +452,6 @@ function initSettingsUI() {
   });
 }
 
-// SCROLL BUTTONS
-
 function initScrollButtons() {
   on($("chatContainer"), "scroll", updateScrollButtons);
   on($("dmMessages"), "scroll", updateScrollButtons);
@@ -486,14 +468,6 @@ function initScrollButtons() {
     updateScrollButtons();
   });
 }
-
-// ROOM CREATION HOOKUP
-
-function initRoomsHooks() {
-  // handled inside initRooms()
-}
-
-// PUBLIC ROOM BOOTSTRAP
 
 async function ensurePublicRoom() {
   try {
@@ -515,8 +489,6 @@ async function ensurePublicRoom() {
   } catch {}
 }
 
-// JUMP TO MESSAGE
-
 function jumpToMessage(msgId) {
   const target = document.querySelector(`.msg-line[data-msg-id="${msgId}"]`);
   if (!target) {
@@ -527,8 +499,6 @@ function jumpToMessage(msgId) {
   target.classList.add("highlight");
   setTimeout(() => target.classList.remove("highlight"), 2500);
 }
-
-// ICONS
 
 function initIcons() {
   applyIconMask($("notifIcon"), "bell");
@@ -542,17 +512,19 @@ function initIcons() {
   applyIconMask($("dmSendIcon"), "send");
 }
 
-// BOOT
-
 async function boot() {
-  // Load assets
-  await Promise.all([loadLanguages(), loadEmojis(), loadAdmins(), loadBotProfile()]);
+  await Promise.all([
+    loadLanguages(),
+    loadEmojis(),
+    loadAdmins(),
+    loadBotProfile(),
+    EmojiService.initEmoji()
+  ]);
   applyTranslations();
   applyTheme();
   applyAppearance();
   initIcons();
 
-  // Wire UI modules
   initAuthUI();
   initProfileUI();
   initSettingsUI();
@@ -596,13 +568,12 @@ async function boot() {
       await leaveRoom();
     },
     resetChatUI,
-    onRoomDeleted: (code) => {
+    onRoomDeleted: () => {
       showLobbyView();
     }
   });
 
-  initUsers(null); // will be re-inited on auth
-
+  initUsers(null);
   wireUserListEvents((uid) => openUserProfile(uid, { canKick }));
 
   buildPresetGrid();
@@ -612,7 +583,6 @@ async function boot() {
   resetChatUI();
   resetDmUI();
 
-  // Firebase auth
   initAuth(async (profile) => {
     if (!profile) {
       state.me = null;
@@ -642,6 +612,8 @@ async function boot() {
     startLobbyListener();
     startNotificationListener();
     startSweeper(profile);
+
+    EmojiService.startCustomEmojiListeners(null);
   });
 }
 
