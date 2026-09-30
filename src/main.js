@@ -12,7 +12,7 @@ import { loadLanguages, applyTranslations, getLang, setLang, t } from "./core/i1
 import { applyTheme, getTheme, setTheme } from "./core/theme.js";
 import { state, resetRoomState } from "./core/state.js";
 
-import { fetchUser, primeCache, updateCached } from "./services/user-cache.js";
+import { fetchUser, primeCache, updateCached, loadBotProfile } from "./services/user-cache.js";
 import { startSweeper, stopSweeper } from "./services/sweeper.js";
 import { sendBotMessage } from "./services/bot.js";
 
@@ -545,7 +545,7 @@ function initIcons() {
 
 async function boot() {
   // Load assets
-  await Promise.all([loadLanguages(), loadEmojis(), loadAdmins()]);
+  await Promise.all([loadLanguages(), loadEmojis(), loadAdmins(), loadBotProfile()]);
   applyTranslations();
   applyTheme();
   applyAppearance();
