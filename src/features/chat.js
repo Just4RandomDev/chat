@@ -1,7 +1,7 @@
 // CHAT
 // Message rendering, sending, replies, reactions, emoji pickers.
 
-import { ref, onValue, off, push, get, remove, update } from "../firebase/database.js";
+import { ref, onValue, off, push, get, set, remove, update } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
 import { $, on, esc, applyIconMask } from "../core/dom.js";
 import { BOT_UID, GROUP_MS, FILE_MAX_BYTES, URL_RE } from "../core/constants.js";
@@ -29,13 +29,11 @@ import { hideAutocomplete } from "./mentions.js";
 
 let onOpenUserProfile = null;
 
-// Track which picker is currently open, and its target
-let activePickerMode = null;      // "reaction" | "message" | null
-let activeReactionTarget = null;  // { msgId, isDm } when mode === "reaction"
-let activeMessageTargetInput = null; // input element when mode === "message"
-let activeTab = "emoji";          // current tab per picker
+let activePickerMode = null;
+let activeReactionTarget = null;
+let activeMessageTargetInput = null;
+let activeTab = "emoji";
 
-// Skin menu cleanup
 let skinMenuEl = null;
 let skinMenuTimeout = null;
 
@@ -65,7 +63,6 @@ export function initChat(categories, hooks) {
   wireReactionPicker();
   wireMessageEmojiPopover();
 
-  // Keep custom emoji grids fresh when Firebase pushes new entries.
   onCustomEmojisChanged(() => {
     refreshCustomGrids();
   });
@@ -633,9 +630,9 @@ export async function toggleReaction(msgId, emoji, isDm) {
   const r = ref(db, path);
   const snap = await get(r);
   if (snap.exists() && snap.val() === true) {
-    try { await remove(r); } catch {}
+    try { await remove(r); } catch (e) { console.error("[toggleReaction remove]", e); }
   } else {
-    try { await set(r, true); } catch {}
+    try { await set(r, true); } catch (e) { console.error("[toggleReaction set]", e); }
   }
 }
 
@@ -696,13 +693,13 @@ function refreshReactionPickerContent() {
 }
 
 
-// MESSAGE EMOJI POPOVER (input button)
+// MESSAGE EMOJI POPOVER
 
 
 function wireMessageEmojiPopover() {
   on($("messageEmojiBtn"), "click", (e) => {
     e.stopPropagation();
-    toggleEmojiPopover($("messageInput"), "emoji");
+    toggleEmojiPopover($("messageInput"), "message");
   });
 
   on($("dmEmojiBtn"), "click", (e) => {
@@ -727,7 +724,6 @@ function wireMessageEmojiPopover() {
 
   on($("popoverSearch"), "input", () => renderSearchResults($("popoverSearch").value, "popoverSearchResults"));
 
-  // Click outside closes the popover
   on(document, "click", (e) => {
     const pop = $("emojiPopover");
     if (!pop || pop.classList.contains("hidden")) return;
@@ -737,7 +733,6 @@ function wireMessageEmojiPopover() {
     closeEmojiPopover();
   });
 
-  // Close on Escape
   on(document, "keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!$("emojiPopover")?.classList.contains("hidden")) closeEmojiPopover();
@@ -746,17 +741,16 @@ function wireMessageEmojiPopover() {
   });
 }
 
-function toggleEmojiPopover(inputEl, inputKey) {
+function toggleEmojiPopover(inputEl, mode) {
   if (!$("emojiPopover").classList.contains("hidden") && activeMessageTargetInput === inputEl) {
     closeEmojiPopover();
     return;
   }
 
-  activePickerMode = "message";
+  activePickerMode = mode;
   activeMessageTargetInput = inputEl;
   activeTab = "emoji";
 
-  // Reset tabs
   document.querySelectorAll("[data-popover-tab]").forEach(x => {
     x.classList.toggle("active", x.dataset.popoverTab === "emoji");
   });
@@ -765,13 +759,11 @@ function toggleEmojiPopover(inputEl, inputKey) {
   $("popoverPaneSearch")?.classList.add("hidden");
   if ($("popoverSearch")) $("popoverSearch").value = "";
 
-  // Render content
   renderRecentsRow("popoverRecents", "popoverRecentsTitle", "message");
   renderFavoritesRow("popoverFavs", "popoverFavsTitle", "message");
   renderCategoryTiles("popoverCategories", "message");
 
-  // Position above the button
-  const btn = inputKey === "dm" ? $("dmEmojiBtn") : $("messageEmojiBtn");
+  const btn = mode === "dm" ? $("dmEmojiBtn") : $("messageEmojiBtn");
   const pop = $("emojiPopover");
   pop.classList.remove("hidden");
 
@@ -779,22 +771,19 @@ function toggleEmojiPopover(inputEl, inputKey) {
     const rect = btn.getBoundingClientRect();
     const popRect = pop.getBoundingClientRect();
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
 
     let left = rect.left;
     let top = rect.top - popRect.height - 8;
 
     if (left + popRect.width > vw - 10) left = vw - popRect.width - 10;
     if (left < 10) left = 10;
-
     if (top < 10) top = rect.bottom + 8;
 
     pop.style.left = left + "px";
     pop.style.top = top + "px";
 
-    // Mark the active button
-    $("messageEmojiBtn")?.classList.toggle("active", inputKey !== "dm");
-    $("dmEmojiBtn")?.classList.toggle("active", inputKey === "dm");
+    $("messageEmojiBtn")?.classList.toggle("active", mode !== "dm");
+    $("dmEmojiBtn")?.classList.toggle("active", mode === "dm");
   });
 }
 
@@ -802,7 +791,7 @@ export function closeEmojiPopover() {
   $("emojiPopover")?.classList.add("hidden");
   $("messageEmojiBtn")?.classList.remove("active");
   $("dmEmojiBtn")?.classList.remove("active");
-  if (activePickerMode === "message") {
+  if (activePickerMode === "message" || activePickerMode === "dm") {
     activePickerMode = null;
     activeMessageTargetInput = null;
   }
@@ -810,7 +799,6 @@ export function closeEmojiPopover() {
 }
 
 function refreshCustomGrids() {
-  // Update both pickers if their Custom tab is currently visible
   if (!$("reactionPickerModal")?.classList.contains("hidden") && !$("reactionPaneCustom")?.classList.contains("hidden")) {
     renderCustomGrid("reactionCustomGlobal", getGlobalCustom(), "global", "reactionCustomRoom", getRoomCustom(), "room");
   }
@@ -908,14 +896,12 @@ function makeEmojiButton(emoji, mode) {
   star.textContent = "★";
   btn.appendChild(star);
 
-  // Click → insert/reaction
   btn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     pickEmoji(emoji, mode);
   });
 
-  // Right click → toggle favorite
   btn.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -925,7 +911,6 @@ function makeEmojiButton(emoji, mode) {
     else renderFavoritesRow("popoverFavs", "popoverFavsTitle", "message");
   });
 
-  // Hover → skin menu for tone-capable emojis
   if (supportsSkinTone(emoji)) {
     btn.addEventListener("mouseenter", () => {
       clearTimeout(skinMenuTimeout);
@@ -1013,7 +998,7 @@ function pickEmoji(emoji, mode) {
     pushRecent(emoji);
     toggleReaction(msgId, emoji, isDm);
     closeReactionPicker();
-  } else if (mode === "message") {
+  } else if (mode === "message" || mode === "dm") {
     insertEmojiIntoInput(emoji);
   }
 }
@@ -1025,7 +1010,7 @@ function pickCustomEmoji(item, mode) {
     const marker = ":" + item.name + ":";
     toggleReaction(msgId, marker, isDm);
     closeReactionPicker();
-  } else if (mode === "message") {
+  } else if (mode === "message" || mode === "dm") {
     insertEmojiIntoInput(":" + item.name + ":");
   }
 }
@@ -1067,7 +1052,7 @@ function renderSearchResults(query, containerId) {
     return;
   }
 
-  const mode = activePickerMode === "message" ? "message" : "reaction";
+  const mode = activePickerMode === "reaction" ? "reaction" : "message";
 
   for (const item of results) {
     if (typeof item === "string") {
@@ -1112,7 +1097,7 @@ function renderCustomGridOne(container, list, scope) {
     return;
   }
 
-  const mode = activePickerMode === "message" ? "message" : "reaction";
+  const mode = activePickerMode === "reaction" ? "reaction" : "message";
 
   for (const item of list) {
     const tile = document.createElement("div");
