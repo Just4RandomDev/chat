@@ -116,6 +116,15 @@ export async function renderUserList() {
   const onlineList = [];
   const offlineListItems = [];
 
+  // BOT — always shown as online, at the top of the list (above self).
+  const bot = await fetchUser("system");
+  onlineList.push({
+    uid: "system",
+    profile: bot,
+    isSelf: false,
+    isBot: true
+  });
+
   if (state.me) {
     onlineList.push({
       uid: state.me.uid,
