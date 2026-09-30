@@ -60,6 +60,8 @@ window.__illoRequestJoinRoom = requestJoinRoom;
 window.__illoState = state;
 window.__illoEmojiService = EmojiService;
 window.__illoStartCustomEmojiListeners = EmojiService.startCustomEmojiListeners;
+window.__illoStartRoomRoleListeners = RolesService.startRoomListeners;
+window.__illoRolesService = RolesService;
 
 let emojiCategories = [];
 
