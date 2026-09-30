@@ -217,6 +217,13 @@ function buildUserRow(entry, isOnline) {
     nameLine.appendChild(b);
   }
 
+  if (uid === "system") {
+    const botBadge = document.createElement("span");
+    botBadge.className = "u-badge bot";
+    botBadge.textContent = "BOT";
+    nameLine.appendChild(botBadge);
+  }
+
   meta.appendChild(nameLine);
 
   const subLine = document.createElement("div");
