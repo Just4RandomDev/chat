@@ -578,10 +578,77 @@
 <div class="modal-backdrop hidden" id="reactionPickerModal">
   <div class="modal reaction-modal">
     <h2 data-i18n="pickReaction">Pick a reaction</h2>
-    <input type="text" id="reactionSearch" class="reaction-search" placeholder="Search emojis…">
-    <div class="reaction-picker" id="reactionPicker"></div>
+
+    <div class="reaction-tabs">
+      <button class="reaction-tab active" data-reaction-tab="emoji">Emoji</button>
+      <button class="reaction-tab" data-reaction-tab="custom">Custom</button>
+      <button class="reaction-tab" data-reaction-tab="search">Search</button>
+    </div>
+
+    <div class="reaction-pane" id="reactionPaneEmoji">
+      <div class="reaction-section-title hidden" id="reactionRecentsTitle">Recent</div>
+      <div class="reaction-picker small" id="reactionRecents"></div>
+      <div class="reaction-section-title hidden" id="reactionFavsTitle">Favorites</div>
+      <div class="reaction-picker small" id="reactionFavs"></div>
+      <div class="reaction-categories" id="reactionCategories"></div>
+    </div>
+
+    <div class="reaction-pane hidden" id="reactionPaneCustom">
+      <div class="reaction-section-title">Global</div>
+      <div class="reaction-picker custom-grid" id="reactionCustomGlobal">
+        <p class="reaction-empty">No custom emojis yet.</p>
+      </div>
+      <div class="reaction-section-title">This room</div>
+      <div class="reaction-picker custom-grid" id="reactionCustomRoom">
+        <p class="reaction-empty">No room emojis yet.</p>
+      </div>
+      <div class="reaction-custom-actions" id="reactionCustomActions">
+        <button class="admin-btn" id="addCustomEmojiBtn">+ Add emoji</button>
+      </div>
+    </div>
+
+    <div class="reaction-pane hidden" id="reactionPaneSearch">
+      <input type="text" id="reactionSearch" class="reaction-search" placeholder="Search emojis… (try: fire, cat, happy)">
+      <div class="reaction-picker" id="reactionSearchResults">
+        <p class="reaction-empty">Type to search…</p>
+      </div>
+    </div>
+
+    <div class="reaction-skin-picker hidden" id="reactionSkinPicker"></div>
+
     <div class="modal-actions">
       <button class="ghost" id="cancelReactionPicker">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="addEmojiModal">
+  <div class="modal">
+    <h2>Add Custom Emoji</h2>
+    <p class="modal-sub">Upload a small image (max 64 KB). It will be available as <code>:name:</code> in messages.</p>
+
+    <label class="field">
+      <span>Name (a-z, 0-9, _)</span>
+      <input type="text" id="newEmojiName" maxlength="24" placeholder="my_emoji" autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span>Image</span>
+      <input type="file" id="newEmojiFile" accept="image/*">
+    </label>
+
+    <img id="newEmojiPreview" alt="">
+
+    <label class="field check-row">
+      <input type="checkbox" id="newEmojiGlobal">
+      <span class="toggle-label">Save globally (only admins can do this)</span>
+    </label>
+
+    <p class="auth-error" id="addEmojiError"></p>
+
+    <div class="modal-actions">
+      <button id="saveCustomEmojiBtn">Save</button>
+      <button class="ghost" id="cancelAddEmojiBtn">Cancel</button>
     </div>
   </div>
 </div>
