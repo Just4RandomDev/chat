@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="assets/css/base.css">
 <link rel="stylesheet" href="assets/css/layout.css">
 <link rel="stylesheet" href="assets/css/chat.css">
+<link rel="stylesheet" href="assets/css/emoji.css">
 <link rel="stylesheet" href="assets/css/modals.css">
 <link rel="stylesheet" href="assets/css/admin.css">
 <link rel="stylesheet" href="assets/css/settings.css">
@@ -121,6 +122,9 @@
           <div class="input-row">
             <input type="text" id="messageInput" placeholder="Type a message..." data-i18n-ph="typeMessage" disabled autocomplete="off">
             <div class="mention-autocomplete hidden" id="mentionAutocomplete"></div>
+            <button class="input-icon-btn" id="messageEmojiBtn" title="Emoji" disabled>
+              <span class="icon-img" id="messageEmojiIcon"></span>
+            </button>
             <label class="file-label" id="fileLabel" title="Attach">
               <span class="icon-img" id="paperclipIcon"></span>
               <input type="file" id="fileInput" accept="image/*,video/*,image/gif" disabled>
@@ -162,6 +166,9 @@
           </div>
           <div class="input-row">
             <input type="text" id="dmInput" placeholder="Type a DM..." disabled autocomplete="off">
+            <button class="input-icon-btn" id="dmEmojiBtn" title="Emoji" disabled>
+              <span class="icon-img" id="dmEmojiIcon"></span>
+            </button>
             <label class="file-label" id="dmFileLabel" title="Attach">
               <span class="icon-img" id="dmPaperclipIcon"></span>
               <input type="file" id="dmFileInput" accept="image/*,video/*,image/gif" disabled>
@@ -276,25 +283,6 @@
         <div class="dc-section">
           <div class="dc-section-title">ABOUT ME</div>
           <div class="dc-about" id="userProfileBio">No bio yet.</div>
-        </div>
-        <div class="dc-section dc-activity hidden" id="userProfileActivity">
-          <div class="dc-section-title" id="userProfileActivityLabel">LISTENING TO SPOTIFY</div>
-          <div class="dc-activity-title" id="userProfileActivityTitle">—</div>
-          <div class="dc-activity-artist" id="userProfileActivityArtist">—</div>
-          <div class="dc-activity-progress">
-            <span class="dc-activity-time" id="userProfileActivityCurrent">0:00</span>
-            <div class="dc-activity-bar"><div class="dc-activity-fill" id="userProfileActivityFill"></div></div>
-            <span class="dc-activity-time" id="userProfileActivityTotal">0:00</span>
-          </div>
-          <div class="dc-activity-controls">
-            <span class="dc-ctrl">🔀</span>
-            <span class="dc-ctrl">⏮</span>
-            <span class="dc-ctrl">⏪</span>
-            <span class="dc-ctrl">⏸</span>
-            <span class="dc-ctrl">⏩</span>
-            <span class="dc-ctrl">⏭</span>
-            <span class="dc-ctrl">🔁</span>
-          </div>
         </div>
         <div class="dc-section">
           <div class="dc-section-title">MEMBER SINCE</div>
@@ -449,24 +437,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop hidden" id="roomSettingsModal">
-  <div class="modal">
-    <h2 data-i18n="roomSettings">Room Settings</h2>
-    <label class="field"><span data-i18n="lobbyName">Lobby Name</span><input type="text" id="settingsRoomName" maxlength="40"></label>
-    <label class="field"><span data-i18n="maxUsers">Max users (2–500)</span><input type="number" id="settingsRoomMax" min="2" max="500"></label>
-    <label class="field"><span data-i18n="changePasswordKeep">Change password (leave empty to keep)</span><input type="password" id="settingsRoomPassword" placeholder="New password"></label>
-    <label class="field check-row"><input type="checkbox" id="settingsRoomPinned"><span class="toggle-label" data-i18n="pinRoom">Pin this room</span></label>
-    <label class="field check-row"><input type="checkbox" id="settingsRoomForever"><span class="toggle-label" data-i18n="foreverRoom">Forever room (never auto-deletes)</span></label>
-    <div class="modal-actions">
-      <button id="saveRoomSettingsBtn" data-i18n="save">Save</button>
-      <button class="ghost" id="cancelRoomSettingsBtn" data-i18n="cancel">Cancel</button>
-    </div>
-    <hr class="settings-divider">
-    <div class="modal-actions"><button class="danger" id="deleteRoomBtn" data-i18n="deleteRoom">Delete Lobby</button></div>
-    <p class="auth-error" id="roomSettingsError"></p>
-  </div>
-</div>
-
 <div class="modal-backdrop hidden" id="settingsModal">
   <div class="modal settings-wide">
     <h2 data-i18n="settings">Settings</h2>
@@ -579,42 +549,40 @@
   <div class="modal reaction-modal">
     <h2 data-i18n="pickReaction">Pick a reaction</h2>
 
-    <div class="reaction-tabs">
-      <button class="reaction-tab active" data-reaction-tab="emoji">Emoji</button>
-      <button class="reaction-tab" data-reaction-tab="custom">Custom</button>
-      <button class="reaction-tab" data-reaction-tab="search">Search</button>
+    <div class="emoji-tabs">
+      <button class="emoji-tab active" data-reaction-tab="emoji">Emoji</button>
+      <button class="emoji-tab" data-reaction-tab="custom">Custom</button>
+      <button class="emoji-tab" data-reaction-tab="search">Search</button>
     </div>
 
-    <div class="reaction-pane" id="reactionPaneEmoji">
-      <div class="reaction-section-title hidden" id="reactionRecentsTitle">Recent</div>
-      <div class="reaction-picker small" id="reactionRecents"></div>
-      <div class="reaction-section-title hidden" id="reactionFavsTitle">Favorites</div>
-      <div class="reaction-picker small" id="reactionFavs"></div>
-      <div class="reaction-categories" id="reactionCategories"></div>
+    <div class="emoji-pane" id="reactionPaneEmoji">
+      <div class="emoji-section-title hidden" id="reactionRecentsTitle">Recent</div>
+      <div class="emoji-row" id="reactionRecents"></div>
+      <div class="emoji-section-title hidden" id="reactionFavsTitle">Favorites</div>
+      <div class="emoji-row" id="reactionFavs"></div>
+      <div class="emoji-categories" id="reactionCategories"></div>
     </div>
 
-    <div class="reaction-pane hidden" id="reactionPaneCustom">
-      <div class="reaction-section-title">Global</div>
-      <div class="reaction-picker custom-grid" id="reactionCustomGlobal">
-        <p class="reaction-empty">No custom emojis yet.</p>
+    <div class="emoji-pane hidden" id="reactionPaneCustom">
+      <div class="emoji-section-title">Global</div>
+      <div class="emoji-custom-grid" id="reactionCustomGlobal">
+        <p class="emoji-empty">No custom emojis yet.</p>
       </div>
-      <div class="reaction-section-title">This room</div>
-      <div class="reaction-picker custom-grid" id="reactionCustomRoom">
-        <p class="reaction-empty">No room emojis yet.</p>
+      <div class="emoji-section-title">This room</div>
+      <div class="emoji-custom-grid" id="reactionCustomRoom">
+        <p class="emoji-empty">No room emojis yet.</p>
       </div>
-      <div class="reaction-custom-actions" id="reactionCustomActions">
+      <div class="emoji-custom-actions">
         <button class="admin-btn" id="addCustomEmojiBtn">+ Add emoji</button>
       </div>
     </div>
 
-    <div class="reaction-pane hidden" id="reactionPaneSearch">
-      <input type="text" id="reactionSearch" class="reaction-search" placeholder="Search emojis… (try: fire, cat, happy)">
-      <div class="reaction-picker" id="reactionSearchResults">
-        <p class="reaction-empty">Type to search…</p>
+    <div class="emoji-pane hidden" id="reactionPaneSearch">
+      <input type="text" id="reactionSearch" class="emoji-search" placeholder="Search emojis… (try: fire, cat, happy)">
+      <div class="emoji-grid" id="reactionSearchResults">
+        <p class="emoji-empty">Type to search…</p>
       </div>
     </div>
-
-    <div class="reaction-skin-picker hidden" id="reactionSkinPicker"></div>
 
     <div class="modal-actions">
       <button class="ghost" id="cancelReactionPicker">Cancel</button>
@@ -656,6 +624,45 @@
 <div class="modal-backdrop hidden" id="moreMenuModal">
   <div class="modal more-modal">
     <div class="more-menu" id="moreMenu"></div>
+  </div>
+</div>
+
+<!-- Emoji popover — anchored above the input emoji button -->
+<div class="emoji-popover hidden" id="emojiPopover">
+  <div class="emoji-popover-header">
+    <div class="emoji-tabs compact">
+      <button class="emoji-tab active" data-popover-tab="emoji">Emoji</button>
+      <button class="emoji-tab" data-popover-tab="custom">Custom</button>
+      <button class="emoji-tab" data-popover-tab="search">Search</button>
+    </div>
+  </div>
+
+  <div class="emoji-popover-body">
+    <div class="emoji-pane" id="popoverPaneEmoji">
+      <div class="emoji-section-title hidden" id="popoverRecentsTitle">Recent</div>
+      <div class="emoji-row" id="popoverRecents"></div>
+      <div class="emoji-section-title hidden" id="popoverFavsTitle">Favorites</div>
+      <div class="emoji-row" id="popoverFavs"></div>
+      <div class="emoji-categories" id="popoverCategories"></div>
+    </div>
+
+    <div class="emoji-pane hidden" id="popoverPaneCustom">
+      <div class="emoji-section-title">Global</div>
+      <div class="emoji-custom-grid" id="popoverCustomGlobal">
+        <p class="emoji-empty">No custom emojis yet.</p>
+      </div>
+      <div class="emoji-section-title">This room</div>
+      <div class="emoji-custom-grid" id="popoverCustomRoom">
+        <p class="emoji-empty">No room emojis yet.</p>
+      </div>
+    </div>
+
+    <div class="emoji-pane hidden" id="popoverPaneSearch">
+      <input type="text" id="popoverSearch" class="emoji-search" placeholder="Search emojis…">
+      <div class="emoji-grid" id="popoverSearchResults">
+        <p class="emoji-empty">Type to search…</p>
+      </div>
+    </div>
   </div>
 </div>
 
