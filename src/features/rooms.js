@@ -1,11 +1,11 @@
 // ROOMS
 // Join, create, and leave rooms.
 
-import { ref, get, set, update, onValue, onDisconnect, serverTimestamp } from "../firebase/database.js";
+import { ref, get, set, update, remove, onValue, onDisconnect, serverTimestamp, query, limitToLast } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
 import { $, on } from "../core/dom.js";
-import { hashPassword, encryptText } from "../core/crypto.js";
-import { PUBLIC_ROOM, BOT_UID } from "../core/constants.js";
+import { hashPassword } from "../core/crypto.js";
+import { PUBLIC_ROOM } from "../core/constants.js";
 import { t } from "../core/i18n.js";
 import { state, resetRoomState } from "../core/state.js";
 import { getPresenceCount } from "../services/presence.js";
@@ -161,12 +161,14 @@ export async function enterRoom(code, roomMeta) {
     state.roomCode = code;
     state.roomMeta = roomMeta;
     state.roomRef = ref(db, `chats/${code}/messages`);
-
-    const { query, limitToLast } = await import("../firebase/database.js");
     state.queryRef = query(state.roomRef, limitToLast(150));
 
     resetChatUI?.();
     onRoomJoined?.(code, roomMeta);
+
+    // Custom emojis: restart listeners with the room code so per-room
+    // emojis are picked up. Global ones are always loaded.
+    window.__illoStartCustomEmojiListeners?.(code);
 
     $("chatHeadTitle").textContent = "# " + (roomMeta.name || code);
     $("chatHeadLock").classList.toggle("hidden", !roomMeta.hasPassword);
@@ -178,8 +180,6 @@ export async function enterRoom(code, roomMeta) {
 
     const renderedIds = new Set();
 
-    // Subscribe to messages. Pre-resolve sender profiles in parallel, then
-    // render synchronously so ordering is preserved.
     const chatUnsub = onValue(state.queryRef, async (snap) => {
       const data = snap.val() || {};
       const entries = Object.entries(data)
@@ -202,7 +202,6 @@ export async function enterRoom(code, roomMeta) {
         return;
       }
 
-      // Preload all senders.
       const uids = [...new Set(newEntries.map(([, m]) => m.uid))];
       await Promise.all(uids.map(u => window.__illoFetchUser?.(u)));
 
@@ -219,7 +218,6 @@ export async function enterRoom(code, roomMeta) {
       try { chatUnsub(); } catch {}
     };
 
-    // Presence
     state.presenceRef = ref(db, `chats/${code}/presence/${state.me.uid}`);
     await set(state.presenceRef, {
       username: state.me.username,
@@ -231,7 +229,6 @@ export async function enterRoom(code, roomMeta) {
     });
     onDisconnect(state.presenceRef).remove();
 
-    // Heartbeat
     if (state.heartbeatId) clearInterval(state.heartbeatId);
     state.heartbeatId = setInterval(() => {
       if (state.roomCode !== code || !state.presenceRef) return;
@@ -283,11 +280,10 @@ export async function leaveRoom(opts = {}) {
     state.presenceRef = null;
   }
 
-  resetRoomState();
+  // Reset custom emoji listeners to global-only
+  window.__illoStartCustomEmojiListeners?.(null);
 
-  if (!opts.silent) {
-    // leaveRoom() silent used internally when switching rooms.
-  }
+  resetRoomState();
 }
 
 async function pushAdvisory(code) {
@@ -299,7 +295,6 @@ async function pushAdvisory(code) {
   } catch {}
 }
 
-// Local import to avoid a circular dep
 function shouldStickToBottomSafe(container) {
   if (!container) return true;
   const viewportBottom = container.scrollTop + container.clientHeight;
