@@ -1,0 +1,18 @@
+@media (max-width: 900px) {
+  .dm-panel { width: 280px; }
+  .reaction-picker { grid-template-columns: repeat(6, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .admin-drawer { width: 100vw; }
+  .side-panel { width: 140px; }
+  .dm-panel { width: 100%; position: absolute; inset: 0; z-index: 300; }
+  .header h1 { font-size: 18px; }
+  .auth-box { padding: 24px; }
+  .auth-box h1 { font-size: 30px; }
+  .notif-dropdown { width: calc(100vw - 40px); right: 20px; }
+  .dc-profile { max-width: 100%; }
+  .dc-avatar-wrap { width: 90px; height: 90px; top: -50px; }
+  .dc-body { padding: 50px 16px 16px; }
+  .dc-name { font-size: 20px; }
+}
