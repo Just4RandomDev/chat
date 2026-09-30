@@ -6,9 +6,10 @@ import { $, on } from "../core/dom.js";
 import { encryptText, decryptText, dmPath, dmKeyForCrypto } from "../core/crypto.js";
 import { state } from "../core/state.js";
 import { fetchUser } from "../services/user-cache.js";
+import { spamCheck as spamCheckService } from "../services/spam.js";
 import { isBlocked } from "./users.js";
 import { pushNotification } from "./notifications.js";
-import { spamCheck, handleFileObject, renderMessage } from "./chat.js";
+import { handleFileObject, renderMessage } from "./chat.js";
 
 let unsub = null;
 let renderedIds = new Set();
@@ -152,7 +153,6 @@ async function openDm(otherUid) {
       return;
     }
 
-    // Preload senders.
     const uids = [...new Set(newEntries.map(([, m]) => m.uid))];
     await Promise.all(uids.map(u => fetchUser(u)));
 
@@ -191,7 +191,12 @@ async function handleSendDm() {
   const rawText = $("dmInput").value.trim();
   const hasMedia = !!state.dmPendingFile;
   if (!rawText && !hasMedia) return window.__illoToast?.("Nothing to send");
-  if (!spamCheck()) return;
+
+  const spam = spamCheckService();
+  if (!spam.ok) {
+    if (spam.message) window.__illoToast?.(spam.message);
+    return;
+  }
 
   const encKey = dmKeyForCrypto(state.me.uid, state.activeDmUid);
   const replyPayload = state.dmReply ? {
