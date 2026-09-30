@@ -409,7 +409,6 @@ function initIcons() {
   applyIconMask($("emptyIcon"), "chat");
   applyIconMask($("sendIcon"), "send");
   applyIconMask($("dmSendIcon"), "send");
-  // Emoji button icon (smiley)
   applyIconMask($("messageEmojiIcon"), "react");
   applyIconMask($("dmEmojiIcon"), "react");
 }
@@ -475,6 +474,7 @@ async function boot() {
   resetChatUI();
   resetDmUI();
 
+  initAuth(async (profile) => {
     if (!profile) {
       state.me = null;
       stopNotificationListener();
@@ -508,6 +508,7 @@ async function boot() {
     startSweeper(profile);
 
     EmojiService.startCustomEmojiListeners(null);
-  };
+  });
+}
 
 boot().catch(e => console.error("[boot]", e));
