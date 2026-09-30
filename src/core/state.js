@@ -60,9 +60,6 @@ export const state = {
   reactionTarget: null,
   moreTarget: null,
 
-  // Spam
-  spamTracker: [],
-
   // Reaction listeners (to clean up on room leave)
   reactionListeners: [],
 
