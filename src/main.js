@@ -15,6 +15,7 @@ import { state, resetRoomState } from "./core/state.js";
 import { fetchUser, primeCache, updateCached, loadBotProfile } from "./services/user-cache.js";
 import { startSweeper, stopSweeper } from "./services/sweeper.js";
 import { sendBotMessage } from "./services/bot.js";
+import { resetSpamState } from "./services/spam.js";
 
 import { initAppearance, applyAppearance, buildPresetGrid, buildColorGrid } from "./features/appearance.js";
 import { initNotifications, startNotificationListener, stopNotificationListener, pushNotification } from "./features/notifications.js";
@@ -618,6 +619,7 @@ async function boot() {
       stopNotificationListener();
       stopSweeper();
       stopLobbyListener();
+      resetSpamState();
 
       $("authScreen")?.classList.remove("hidden");
       $("appRoot")?.classList.add("hidden");
