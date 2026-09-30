@@ -30,7 +30,7 @@ import { initRooms, requestJoinRoom, enterRoom, leaveRoom } from "./features/roo
 import { initMentions, hideAutocomplete } from "./features/mentions.js";
 import {
   initChat, renderMessage, sendMessage, resetChatUI,
-  handleFileObject, setReply
+  handleFileObject, setReply, closeEmojiPopover
 } from "./features/chat.js";
 import {
   initDm, openDmPanel, closeDm, resetDmUI, resetDmLocalState,
@@ -43,7 +43,6 @@ import {
 } from "./features/moderation.js";
 import { initAdminUI, updateAdminUI } from "./features/admin.js";
 
-// GLOBAL HOOKS (avoid circular imports)
 window.__illoToast = showToast;
 window.__illoFetchUser = fetchUser;
 window.__illoIsBlocked = isBlocked;
@@ -61,29 +60,21 @@ window.__illoState = state;
 window.__illoEmojiService = EmojiService;
 window.__illoStartCustomEmojiListeners = EmojiService.startCustomEmojiListeners;
 
-// TRANSLATIONS + EMOJIS + ADMINS
-
 let emojiCategories = [];
 
 async function loadAdmins() {
   try {
     const data = await loadJson("data/admins.json");
     state.admins = Array.isArray(data.admins) ? data.admins : [];
-  } catch {
-    state.admins = [];
-  }
+  } catch { state.admins = []; }
 }
 
 async function loadEmojis() {
   try {
     const data = await loadJson("data/emojis.json");
     emojiCategories = Array.isArray(data.categories) ? data.categories : [];
-  } catch {
-    emojiCategories = [];
-  }
+  } catch { emojiCategories = []; }
 }
-
-// UI HELPERS
 
 function showToast(msg) {
   const el = $("toast");
@@ -97,9 +88,11 @@ function setStatus(connected) {
   $("statusDot")?.classList.toggle("online", connected);
   if ($("statusText")) $("statusText").textContent = connected ? "connected" : "disconnected";
 
-  if ($("messageInput")) $("messageInput").disabled = !connected;
-  if ($("fileInput")) $("fileInput").disabled = !connected;
-  if ($("sendBtn")) $("sendBtn").disabled = !connected;
+  ["messageInput", "fileInput", "sendBtn", "messageEmojiBtn", "dmEmojiBtn"].forEach(id => {
+    const el = $(id);
+    if (el) el.disabled = !connected;
+  });
+
   if ($("fileLabel")) {
     $("fileLabel").style.opacity = connected ? "1" : "0.5";
     $("fileLabel").style.pointerEvents = connected ? "auto" : "none";
@@ -128,6 +121,7 @@ function isAtBottom(container) {
 
 function showLobbyView() {
   try { closeDm(); } catch {}
+  try { closeEmojiPopover(); } catch {}
   $("lobbyView")?.classList.remove("hidden");
   $("roomView")?.classList.add("hidden");
   $("backToLobbyBtn")?.classList.add("hidden");
@@ -144,86 +138,51 @@ function showRoomView() {
 }
 
 function updateMyPfp() {
-  if ($("myPfpBtn") && state.me) {
-    $("myPfpBtn").src = state.me.pfp || "";
-  }
+  if ($("myPfpBtn") && state.me) $("myPfpBtn").src = state.me.pfp || "";
 }
 
-function onRoomJoined(code, roomMeta) {
-  showRoomView();
-  updateAdminUI();
-}
-
-function onRoomLeft() {
-  showLobbyView();
-}
+function onRoomJoined() { showRoomView(); updateAdminUI(); }
+function onRoomLeft() { showLobbyView(); }
 
 function initAuthUI() {
   on($("tabLogin"), "click", () => {
-    $("tabLogin").classList.add("active");
-    $("tabSignup").classList.remove("active");
-    $("loginForm").classList.remove("hidden");
-    $("signupForm").classList.add("hidden");
+    $("tabLogin").classList.add("active"); $("tabSignup").classList.remove("active");
+    $("loginForm").classList.remove("hidden"); $("signupForm").classList.add("hidden");
     $("authError").textContent = "";
   });
-
   on($("tabSignup"), "click", () => {
-    $("tabSignup").classList.add("active");
-    $("tabLogin").classList.remove("active");
-    $("signupForm").classList.remove("hidden");
-    $("loginForm").classList.add("hidden");
+    $("tabSignup").classList.add("active"); $("tabLogin").classList.remove("active");
+    $("signupForm").classList.remove("hidden"); $("loginForm").classList.add("hidden");
     $("authError").textContent = "";
   });
-
   on($("loginBtn"), "click", async () => {
     $("authError").textContent = "";
-    try {
-      await login($("loginEmail").value.trim(), $("loginPassword").value);
-    } catch (e) {
-      $("authError").textContent = e.message.replace("Firebase: ", "");
-    }
+    try { await login($("loginEmail").value.trim(), $("loginPassword").value); }
+    catch (e) { $("authError").textContent = e.message.replace("Firebase: ", ""); }
   });
-
   on($("signupBtn"), "click", async () => {
     $("authError").textContent = "";
     try {
-      await signup(
-        $("signupUsername").value.trim(),
-        $("signupEmail").value.trim(),
-        $("signupPassword").value
-      );
-    } catch (e) {
-      $("authError").textContent = e.message.replace("Firebase: ", "");
-    }
+      await signup($("signupUsername").value.trim(), $("signupEmail").value.trim(), $("signupPassword").value);
+    } catch (e) { $("authError").textContent = e.message.replace("Firebase: ", ""); }
   });
-
-  on($("logoutBtn2"), "click", async () => {
-    await leaveRoom();
-    await logout();
-  });
+  on($("logoutBtn2"), "click", async () => { await leaveRoom(); await logout(); });
 }
 
 function initProfileUI() {
   on($("profileBtn"), "click", () => openMyProfile({ isGlobalAdmin }));
-
   on($("cancelProfileBtn"), "click", () => $("profileModal").classList.add("hidden"));
-
   on($("userProfileCloseBtn"), "click", () => {
-    $("userProfileModal").classList.add("hidden");
-    state.viewedUid = null;
+    $("userProfileModal").classList.add("hidden"); state.viewedUid = null;
   });
-
   on($("userProfileDmBtn"), "click", async () => {
-    const uid = state.viewedUid;
-    if (!uid) return;
+    const uid = state.viewedUid; if (!uid) return;
     $("userProfileModal").classList.add("hidden");
     await openDmPanel(uid);
     state.viewedUid = null;
   });
-
   on($("userProfileBlockBtn"), "click", async () => {
-    const uid = state.viewedUid;
-    if (!uid) return;
+    const uid = state.viewedUid; if (!uid) return;
     const nowBlocked = await toggleBlock(uid);
     showToast(nowBlocked ? "Blocked (client-side only)" : "Unblocked");
     $("userProfileBlockBtn").textContent = nowBlocked ? "Unblock" : t("block");
@@ -231,24 +190,15 @@ function initProfileUI() {
     $("userProfileStatusDot").style.display = nowBlocked ? "none" : "block";
     renderUserList();
   });
-
   on($("userProfileKickBtn"), "click", async () => {
-    const uid = state.viewedUid;
-    if (!uid) return;
-    try {
-      const username = await adminKick(uid);
-      showToast("Kicked " + username);
-    } catch (e) {
-      showToast(e.message || "Could not kick");
-    }
+    const uid = state.viewedUid; if (!uid) return;
+    try { showToast("Kicked " + (await adminKick(uid))); }
+    catch (e) { showToast(e.message || "Could not kick"); }
     $("userProfileModal").classList.add("hidden");
     state.viewedUid = null;
   });
-
   on($("profileMoreBtn"), "click", () => {
-    const menu = $("profileMoreMenu");
-    menu.innerHTML = "";
-
+    const menu = $("profileMoreMenu"); menu.innerHTML = "";
     const edit = document.createElement("button");
     edit.textContent = t("editProfile");
     edit.addEventListener("click", () => {
@@ -257,7 +207,6 @@ function initProfileUI() {
       openEditProfile();
     });
     menu.appendChild(edit);
-
     const status = document.createElement("button");
     status.textContent = t("status");
     status.addEventListener("click", () => {
@@ -267,7 +216,6 @@ function initProfileUI() {
       setTimeout(() => $("statusInput").focus(), 50);
     });
     menu.appendChild(status);
-
     const block = document.createElement("button");
     block.className = "danger";
     block.textContent = t("block");
@@ -276,27 +224,20 @@ function initProfileUI() {
       openBlockUserModal();
     });
     menu.appendChild(block);
-
     $("profileMoreMenuModal").classList.remove("hidden");
   });
-
   on($("profileMoreMenuModal"), "click", (e) => {
     if (e.target === $("profileMoreMenuModal")) $("profileMoreMenuModal").classList.add("hidden");
   });
-
   on($("cancelEditProfileBtn"), "click", () => $("editProfileModal").classList.add("hidden"));
-
   on($("editPfp"), "change", (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
     r.onload = (ev) => { $("editProfileAvatar").src = ev.target.result; };
     r.readAsDataURL(f);
   });
-
   on($("editBanner"), "change", (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const f = e.target.files[0]; if (!f) return;
     if (f.size > 400 * 1024) { showToast("Banner too big (400KB max)"); e.target.value = ""; return; }
     const r = new FileReader();
     r.onload = (ev) => {
@@ -306,7 +247,6 @@ function initProfileUI() {
     };
     r.readAsDataURL(f);
   });
-
   on($("saveProfileBtn"), "click", async () => {
     $("profileError").textContent = "";
     try {
@@ -316,36 +256,25 @@ function initProfileUI() {
       $("editProfileModal").classList.add("hidden");
       showToast("Profile saved");
       if (state.roomCode) renderUserList();
-    } catch (e) {
-      $("profileError").textContent = e.message;
-    }
+    } catch (e) { $("profileError").textContent = e.message; }
   });
-
   on($("saveStatusBtn"), "click", async () => {
     try {
       await saveUserStatus($("statusInput").value);
       $("statusModal").classList.add("hidden");
       showToast("Status updated");
       if (state.roomCode) renderUserList();
-    } catch {
-      showToast("Could not update status");
-    }
+    } catch { showToast("Could not update status"); }
   });
-
   on($("cancelStatusBtn"), "click", () => $("statusModal").classList.add("hidden"));
-
   on($("saveProfileColorsBtn"), "click", async () => {
     try {
       await saveProfileColors($("editNameColor").value, $("editAccentColor").value);
       showToast("Colors saved");
       if (state.roomCode) renderUserList();
-    } catch {
-      showToast("Could not save colors");
-    }
+    } catch { showToast("Could not save colors"); }
   });
-
   on($("cancelBlockBtn"), "click", () => $("blockUserModal").classList.add("hidden"));
-
   on($("confirmBlockBtn"), "click", async () => {
     const uid = $("blockUserSelect").value;
     if (!uid) return showToast("Pick a user");
@@ -357,12 +286,10 @@ function initProfileUI() {
 }
 
 function openEditProfile() {
-  const m = state.me;
-  if (!m) return;
+  const m = state.me; if (!m) return;
   $("editUsername").value = m.username;
   $("editBio").value = m.bio || "";
-  $("editPfp").value = "";
-  $("editBanner").value = "";
+  $("editPfp").value = ""; $("editBanner").value = "";
   $("profileError").textContent = "";
   $("editProfileAvatar").src = m.pfp || "";
   $("editProfileBanner").style.cssText = bannerStyle(m.accentColor, m.bannerImage);
@@ -370,30 +297,21 @@ function openEditProfile() {
 }
 
 function openBlockUserModal() {
-  const sel = $("blockUserSelect");
-  sel.innerHTML = "";
-
-  const seen = new Set();
-  const entries = [];
-
+  const sel = $("blockUserSelect"); sel.innerHTML = "";
+  const seen = new Set(); const entries = [];
   for (const uid of Object.keys(state.presenceData || {})) {
     if (uid === state.me.uid || seen.has(uid)) continue;
-    seen.add(uid);
-    entries.push({ uid, name: uid.slice(0, 6) });
+    seen.add(uid); entries.push({ uid, name: uid.slice(0, 6) });
   }
   for (const uid of Object.keys(state.seenData || {})) {
     if (uid === state.me.uid || seen.has(uid)) continue;
-    seen.add(uid);
-    entries.push({ uid, name: uid.slice(0, 6) });
+    seen.add(uid); entries.push({ uid, name: uid.slice(0, 6) });
   }
   entries.sort((a, b) => a.name.localeCompare(b.name));
-
   if (!entries.length) {
     const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No users in this room";
-    sel.appendChild(opt);
-    sel.disabled = true;
+    opt.value = ""; opt.textContent = "No users in this room";
+    sel.appendChild(opt); sel.disabled = true;
   } else {
     sel.disabled = false;
     for (const e of entries) {
@@ -403,7 +321,6 @@ function openBlockUserModal() {
       sel.appendChild(opt);
     }
   }
-
   $("blockUserModal").classList.remove("hidden");
 }
 
@@ -411,32 +328,23 @@ function initSettingsUI() {
   on($("settingsBtn"), "click", () => {
     $("themeSelect").value = getTheme();
     $("languageSelect").value = getLang();
-    $("currentPassword").value = "";
-    $("newPassword").value = "";
+    $("currentPassword").value = ""; $("newPassword").value = "";
     $("settingsError").textContent = "";
     $("editNameColor").value = state.me?.nameColor || "#ffffff";
     $("editAccentColor").value = state.me?.accentColor || "#8c5aff";
-    buildPresetGrid();
-    buildColorGrid();
+    buildPresetGrid(); buildColorGrid();
     $("settingsModal").classList.remove("hidden");
   });
-
   on($("closeSettingsBtn"), "click", () => $("settingsModal").classList.add("hidden"));
-
   on($("languageSelect"), "change", () => setLang($("languageSelect").value));
-
   on($("changePasswordBtn"), "click", async () => {
     $("settingsError").textContent = "";
     try {
       await changePassword($("currentPassword").value, $("newPassword").value);
-      $("currentPassword").value = "";
-      $("newPassword").value = "";
+      $("currentPassword").value = ""; $("newPassword").value = "";
       showToast("Password updated");
-    } catch (e) {
-      $("settingsError").textContent = e.message.replace("Firebase: ", "");
-    }
+    } catch (e) { $("settingsError").textContent = e.message.replace("Firebase: ", ""); }
   });
-
   document.querySelectorAll(".settings-tab").forEach(tab => {
     tab.addEventListener("click", () => {
       if (!tab.dataset.tab) return;
@@ -455,16 +363,12 @@ function initSettingsUI() {
 function initScrollButtons() {
   on($("chatContainer"), "scroll", updateScrollButtons);
   on($("dmMessages"), "scroll", updateScrollButtons);
-
   on($("scrollBottomChat"), "click", () => {
-    const c = $("chatContainer");
-    if (c) c.scrollTop = c.scrollHeight;
+    const c = $("chatContainer"); if (c) c.scrollTop = c.scrollHeight;
     updateScrollButtons();
   });
-
   on($("scrollBottomDm"), "click", () => {
-    const c = $("dmMessages");
-    if (c) c.scrollTop = c.scrollHeight;
+    const c = $("dmMessages"); if (c) c.scrollTop = c.scrollHeight;
     updateScrollButtons();
   });
 }
@@ -474,15 +378,10 @@ async function ensurePublicRoom() {
     const s = await get(ref(db, `rooms/${PUBLIC_ROOM}`));
     if (!s.exists()) {
       await set(ref(db, `rooms/${PUBLIC_ROOM}`), {
-        name: "Public Lobby",
-        adminUid: "system",
-        hasPassword: false,
-        passwordHash: "",
-        maxUsers: 500,
-        kicked: {},
-        isPublic: true,
-        pinned: true,
-        forever: true,
+        name: "Public Lobby", adminUid: "system",
+        hasPassword: false, passwordHash: "",
+        maxUsers: 500, kicked: {},
+        isPublic: true, pinned: true, forever: true,
         createdAt: Date.now()
       });
     }
@@ -491,10 +390,7 @@ async function ensurePublicRoom() {
 
 function jumpToMessage(msgId) {
   const target = document.querySelector(`.msg-line[data-msg-id="${msgId}"]`);
-  if (!target) {
-    showToast("Message not in view (older than 100 messages)");
-    return;
-  }
+  if (!target) { showToast("Message not in view (older than 100 messages)"); return; }
   target.scrollIntoView({ behavior: "smooth", block: "center" });
   target.classList.add("highlight");
   setTimeout(() => target.classList.remove("highlight"), 2500);
@@ -510,6 +406,9 @@ function initIcons() {
   applyIconMask($("emptyIcon"), "chat");
   applyIconMask($("sendIcon"), "send");
   applyIconMask($("dmSendIcon"), "send");
+  // Emoji button icon (smiley)
+  applyIconMask($("messageEmojiIcon"), "react");
+  applyIconMask($("dmEmojiIcon"), "react");
 }
 
 async function boot() {
@@ -545,9 +444,7 @@ async function boot() {
 
   initMentions($("messageInput"));
 
-  initLobby({
-    onJoin: (code) => requestJoinRoom(code)
-  });
+  initLobby({ onJoin: (code) => requestJoinRoom(code) });
 
   initRooms({
     renderMessage,
@@ -555,29 +452,21 @@ async function boot() {
       const e = $("emptyState");
       if (e && e.parentNode === $("chatContainer")) e.style.display = "none";
     },
-    resetChatUI,
-    resetDmUI,
-    onRoomJoined,
-    onRoomLeft,
-    canModerate,
-    isGlobalAdmin
+    resetChatUI, resetDmUI,
+    onRoomJoined, onRoomLeft,
+    canModerate, isGlobalAdmin
   });
 
   initAdminUI({
-    onLeaveRoom: async () => {
-      await leaveRoom();
-    },
+    onLeaveRoom: async () => { await leaveRoom(); },
     resetChatUI,
-    onRoomDeleted: () => {
-      showLobbyView();
-    }
+    onRoomDeleted: () => { showLobbyView(); }
   });
 
   initUsers(null);
   wireUserListEvents((uid) => openUserProfile(uid, { canKick }));
 
-  buildPresetGrid();
-  buildColorGrid();
+  buildPresetGrid(); buildColorGrid();
   updateScrollButtons();
   setStatus(false);
   resetChatUI();
@@ -590,7 +479,6 @@ async function boot() {
       stopSweeper();
       stopLobbyListener();
       resetSpamState();
-
       $("authScreen")?.classList.remove("hidden");
       $("appRoot")?.classList.add("hidden");
       return;
