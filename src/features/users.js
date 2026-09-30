@@ -149,6 +149,8 @@ export async function renderUserList() {
   }
 
   const sortFn = (a, b) => {
+    if (a.isBot) return -1;   // bot always first
+    if (b.isBot) return 1;
     if (a.isSelf) return -1;
     if (b.isSelf) return 1;
     const aAdmin = state.admins.includes(a.uid);
