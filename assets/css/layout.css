@@ -531,3 +531,8 @@
   font-style: italic;
   font-size: 13px;
 }
+
+.user-item .u-badge.bot {
+  background: #5865f2;
+  color: #fff;
+}
