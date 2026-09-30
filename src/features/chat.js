@@ -1,15 +1,10 @@
 // CHAT
-// Message rendering, sending, replies, reactions.
+// Message rendering, sending, replies, reactions, emoji pickers.
 
-import { ref, onValue, off, push, get, remove, update, serverTimestamp } from "../firebase/database.js";
+import { ref, onValue, off, push, get, remove, update } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
 import { $, on, esc, applyIconMask } from "../core/dom.js";
-import {
-  BOT_UID,
-  GROUP_MS,
-  FILE_MAX_BYTES,
-  URL_RE
-} from "../core/constants.js";
+import { BOT_UID, GROUP_MS, FILE_MAX_BYTES, URL_RE } from "../core/constants.js";
 import { fmtTime, classifyUrl, extractMentions, hasEveryone } from "../core/helpers.js";
 import { encryptText, decryptText } from "../core/crypto.js";
 import { t } from "../core/i18n.js";
@@ -19,34 +14,32 @@ import { sendBotMessage } from "../services/bot.js";
 import { spamCheck as spamCheckService } from "../services/spam.js";
 import {
   getCategories,
-  getRecents,
-  pushRecent,
-  getFavorites,
-  isFavorite,
-  toggleFavorite,
+  getRecents, pushRecent,
+  getFavorites, isFavorite, toggleFavorite,
   searchEmoji,
-  supportsSkinTone,
-  applySkinTone,
-  getSkinToneLabels,
-  getGlobalCustom,
-  getRoomCustom,
-  addCustomEmoji,
-  deleteCustomEmoji,
-  extractCustomEmojiTokens,
-  renderCustomEmojiTokens
+  supportsSkinTone, applySkinTone, getSkinToneLabels,
+  getGlobalCustom, getRoomCustom,
+  addCustomEmoji, deleteCustomEmoji,
+  onCustomEmojisChanged,
+  tokenizeCustomEmojis, hasCustomEmojiTokens
 } from "../services/emoji.js";
 import { isBlocked } from "./users.js";
 import { pushNotification } from "./notifications.js";
 import { hideAutocomplete } from "./mentions.js";
 
-let emojiCategories = [];
 let onOpenUserProfile = null;
 
-let currentReactionTab = "emoji";
-let currentReactionTarget = null; // { msgId, isDm }
+// Track which picker is currently open, and its target
+let activePickerMode = null;      // "reaction" | "message" | null
+let activeReactionTarget = null;  // { msgId, isDm } when mode === "reaction"
+let activeMessageTargetInput = null; // input element when mode === "message"
+let activeTab = "emoji";          // current tab per picker
+
+// Skin menu cleanup
+let skinMenuEl = null;
+let skinMenuTimeout = null;
 
 export function initChat(categories, hooks) {
-  emojiCategories = categories || [];
   onOpenUserProfile = hooks?.onOpenUserProfile || null;
 
   on($("sendBtn"), "click", sendMessage);
@@ -65,12 +58,22 @@ export function initChat(categories, hooks) {
   on($("filePreviewRemove"), "click", () => clearPendingFile());
   on($("messageInput"), "paste", (e) => pasteHandler(e, false));
 
-  initReactionPickerUI();
-
   on($("moreMenuModal"), "click", (e) => {
     if (e.target === $("moreMenuModal")) $("moreMenuModal").classList.add("hidden");
   });
+
+  wireReactionPicker();
+  wireMessageEmojiPopover();
+
+  // Keep custom emoji grids fresh when Firebase pushes new entries.
+  onCustomEmojisChanged(() => {
+    refreshCustomGrids();
+  });
 }
+
+
+// REPLY / FILE HELPERS
+
 
 export function setReply(target) {
   state.reply = target;
@@ -128,11 +131,8 @@ export function handleFileObject(file, isDm) {
 
   r.onload = (ev) => {
     const payload = { type, dataUrl: ev.target.result, objectUrl, name: file.name };
-    if (isDm) {
-      state.dmPendingFile = payload;
-    } else {
-      state.pendingFile = payload;
-    }
+    if (isDm) state.dmPendingFile = payload;
+    else state.pendingFile = payload;
     renderFilePreview(payload, isDm);
   };
 
@@ -163,6 +163,10 @@ function renderFilePreview(payload, isDm) {
   container.preview.classList.remove("hidden");
   (isDm ? $("dmInput") : $("messageInput")).focus();
 }
+
+
+// SEND
+
 
 export async function sendMessage() {
   if (!state.roomCode || !state.roomRef) {
@@ -207,6 +211,7 @@ export async function sendMessage() {
   clearPendingFile();
   setReply(null);
   hideAutocomplete();
+  closeEmojiPopover();
   $("messageInput").focus();
   window.__illoUpdateScrollButtons?.();
 }
@@ -279,6 +284,10 @@ function handleBotCommands(rawText) {
     if (action) sendBotMessage(state.roomCode, "* " + state.me.username + " " + action);
   }
 }
+
+
+// RENDER MESSAGE
+
 
 export async function renderMessage(container, msgId, msg, isOwn, isDm) {
   if (!isDm && msg.dmKey) return;
@@ -384,9 +393,8 @@ export async function renderMessage(container, msgId, msg, isOwn, isDm) {
   const contentWrap = document.createElement("div");
   contentWrap.style.display = "inline";
   if (plainText) {
-    const { text: tokenizedText, customImages } = extractCustomEmojiTokens(plainText);
-    if (customImages && customImages.size > 0) {
-      renderCustomAndText(contentWrap, tokenizedText, customImages);
+    if (hasCustomEmojiTokens(plainText)) {
+      renderTokenizedText(contentWrap, plainText);
     } else {
       buildLineContent(contentWrap, plainText);
     }
@@ -398,8 +406,7 @@ export async function renderMessage(container, msgId, msg, isOwn, isDm) {
     if (src?.startsWith("data:")) {
       if (msg.mediaType === "image" || msg.mediaType === "gif") {
         const img = document.createElement("img");
-        img.src = src;
-        img.loading = "lazy";
+        img.src = src; img.loading = "lazy";
         line.appendChild(img);
         if (msg.mediaType === "gif") {
           const tag = document.createElement("span");
@@ -409,9 +416,7 @@ export async function renderMessage(container, msgId, msg, isOwn, isDm) {
         }
       } else if (msg.mediaType === "video") {
         const v = document.createElement("video");
-        v.src = src;
-        v.controls = true;
-        v.preload = "metadata";
+        v.src = src; v.controls = true; v.preload = "metadata";
         line.appendChild(v);
       }
     }
@@ -488,9 +493,26 @@ function dmPairKeySafe(a, b) {
   return `${x}__${y}`;
 }
 
+function renderTokenizedText(parent, plainText) {
+  const parts = tokenizeCustomEmojis(plainText);
+  for (const part of parts) {
+    if (part.type === "text") {
+      if (part.value) buildLineContent(parent, part.value);
+    } else if (part.type === "custom") {
+      const img = document.createElement("img");
+      img.className = "custom-emoji-inline";
+      img.src = part.dataUrl;
+      img.alt = ":" + part.name + ":";
+      img.title = ":" + part.name + ":";
+      parent.appendChild(img);
+    }
+  }
+}
+
 function renderPills(container, data, msgId, isDm) {
   container.innerHTML = "";
   if (!data) return;
+
   for (const [emoji, users] of Object.entries(data)) {
     if (!users) continue;
     const uids = Object.keys(users).filter(u => users[u] === true);
@@ -499,7 +521,6 @@ function renderPills(container, data, msgId, isDm) {
     const pill = document.createElement("button");
     pill.className = "reaction-pill" + (state.me && users[state.me.uid] ? " mine" : "");
 
-    // Custom emoji marker?
     const customMatch = /^:([a-z0-9_]{2,24}):$/i.exec(emoji);
     if (customMatch) {
       const all = [...getGlobalCustom(), ...getRoomCustom()];
@@ -513,7 +534,9 @@ function renderPills(container, data, msgId, isDm) {
         img.style.objectFit = "contain";
         pill.appendChild(img);
       } else {
-        pill.textContent = emoji;
+        const span = document.createElement("span");
+        span.textContent = emoji;
+        pill.appendChild(span);
       }
     } else {
       const span = document.createElement("span");
@@ -597,21 +620,9 @@ function renderTextWithMentions(parent, text) {
   }
 }
 
-function renderCustomAndText(parent, tokenizedText, customImages) {
-  const parts = renderCustomEmojiTokens(tokenizedText, customImages);
-  for (const part of parts) {
-    if (part.type === "text") {
-      if (part.value) buildLineContent(parent, part.value);
-    } else if (part.type === "custom") {
-      const img = document.createElement("img");
-      img.className = "custom-emoji-inline";
-      img.src = part.url;
-      img.alt = ":" + part.name + ":";
-      img.title = ":" + part.name + ":";
-      parent.appendChild(img);
-    }
-  }
-}
+
+// REACTIONS
+
 
 export async function toggleReaction(msgId, emoji, isDm) {
   if (!state.me) return;
@@ -628,57 +639,37 @@ export async function toggleReaction(msgId, emoji, isDm) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// REACTION PICKER — TABS, RECENTS, FAVORITES, SKIN TONES, CUSTOM
-// ─────────────────────────────────────────────────────────────
 
-function initReactionPickerUI() {
+// REACTION PICKER MODAL
+
+
+function wireReactionPicker() {
   document.querySelectorAll("[data-reaction-tab]").forEach(tab => {
     tab.addEventListener("click", () => {
       document.querySelectorAll("[data-reaction-tab]").forEach(x => x.classList.remove("active"));
       tab.classList.add("active");
-      currentReactionTab = tab.dataset.reactionTab;
-      $("reactionPaneEmoji")?.classList.toggle("hidden", currentReactionTab !== "emoji");
-      $("reactionPaneCustom")?.classList.toggle("hidden", currentReactionTab !== "custom");
-      $("reactionPaneSearch")?.classList.toggle("hidden", currentReactionTab !== "search");
-      hideSkinPicker();
-      if (currentReactionTab === "search") {
-        setTimeout(() => $("reactionSearch")?.focus(), 40);
-      }
-      if (currentReactionTab === "custom") {
-        renderCustomGrids();
-      }
+      const target = tab.dataset.reactionTab;
+      $("reactionPaneEmoji")?.classList.toggle("hidden", target !== "emoji");
+      $("reactionPaneCustom")?.classList.toggle("hidden", target !== "custom");
+      $("reactionPaneSearch")?.classList.toggle("hidden", target !== "search");
+      if (target === "custom") renderCustomGrid("reactionCustomGlobal", getGlobalCustom(), "global", "reactionCustomRoom", getRoomCustom(), "room");
+      if (target === "search") setTimeout(() => $("reactionSearch")?.focus(), 40);
     });
   });
 
-  on($("reactionSearch"), "input", () => {
-    renderSearchResults($("reactionSearch").value);
-  });
-
-  on($("cancelReactionPicker"), "click", () => {
-    $("reactionPickerModal").classList.add("hidden");
-    currentReactionTarget = null;
-    state.reactionTarget = null;
-    hideSkinPicker();
-  });
-
+  on($("reactionSearch"), "input", () => renderSearchResults($("reactionSearch").value, "reactionSearchResults"));
+  on($("cancelReactionPicker"), "click", closeReactionPicker);
   on($("addCustomEmojiBtn"), "click", openAddEmojiModal);
   on($("cancelAddEmojiBtn"), "click", () => $("addEmojiModal").classList.add("hidden"));
-  on($("newEmojiFile"), "change", () => previewNewEmoji());
+  on($("newEmojiFile"), "change", previewNewEmoji);
   on($("saveCustomEmojiBtn"), "click", handleSaveCustomEmoji);
-
-  on(document, "click", (e) => {
-    const sp = $("reactionSkinPicker");
-    if (!sp || sp.classList.contains("hidden")) return;
-    if (!sp.contains(e.target) && !e.target.closest(".emoji-tile")) hideSkinPicker();
-  });
 }
 
 export function openReactionPicker(msgId, isDm) {
-  currentReactionTarget = { msgId, isDm };
-  state.reactionTarget = currentReactionTarget;
+  activePickerMode = "reaction";
+  activeReactionTarget = { msgId, isDm };
+  activeTab = "emoji";
 
-  currentReactionTab = "emoji";
   document.querySelectorAll("[data-reaction-tab]").forEach(x => {
     x.classList.toggle("active", x.dataset.reactionTab === "emoji");
   });
@@ -687,87 +678,225 @@ export function openReactionPicker(msgId, isDm) {
   $("reactionPaneSearch")?.classList.add("hidden");
   if ($("reactionSearch")) $("reactionSearch").value = "";
 
-  renderRecentsRow();
-  renderFavoritesRow();
-  renderCategoryTiles();
-
-  hideSkinPicker();
+  refreshReactionPickerContent();
   $("reactionPickerModal").classList.remove("hidden");
 }
 
-function renderRecentsRow() {
-  const container = $("reactionRecents");
-  const title = $("reactionRecentsTitle");
-  if (!container || !title) return;
+function closeReactionPicker() {
+  $("reactionPickerModal").classList.add("hidden");
+  activePickerMode = null;
+  activeReactionTarget = null;
+  hideSkinMenu();
+}
+
+function refreshReactionPickerContent() {
+  renderRecentsRow("reactionRecents", "reactionRecentsTitle", "reaction");
+  renderFavoritesRow("reactionFavs", "reactionFavsTitle", "reaction");
+  renderCategoryTiles("reactionCategories", "reaction");
+}
+
+
+// MESSAGE EMOJI POPOVER (input button)
+
+
+function wireMessageEmojiPopover() {
+  on($("messageEmojiBtn"), "click", (e) => {
+    e.stopPropagation();
+    toggleEmojiPopover($("messageInput"), "emoji");
+  });
+
+  on($("dmEmojiBtn"), "click", (e) => {
+    e.stopPropagation();
+    toggleEmojiPopover($("dmInput"), "dm");
+  });
+
+  document.querySelectorAll("[data-popover-tab]").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll("[data-popover-tab]").forEach(x => x.classList.remove("active"));
+      tab.classList.add("active");
+      const target = tab.dataset.popoverTab;
+      $("popoverPaneEmoji")?.classList.toggle("hidden", target !== "emoji");
+      $("popoverPaneCustom")?.classList.toggle("hidden", target !== "custom");
+      $("popoverPaneSearch")?.classList.toggle("hidden", target !== "search");
+      if (target === "custom") {
+        renderCustomGrid("popoverCustomGlobal", getGlobalCustom(), "global", "popoverCustomRoom", getRoomCustom(), "room");
+      }
+      if (target === "search") setTimeout(() => $("popoverSearch")?.focus(), 40);
+    });
+  });
+
+  on($("popoverSearch"), "input", () => renderSearchResults($("popoverSearch").value, "popoverSearchResults"));
+
+  // Click outside closes the popover
+  on(document, "click", (e) => {
+    const pop = $("emojiPopover");
+    if (!pop || pop.classList.contains("hidden")) return;
+    if (pop.contains(e.target)) return;
+    if (e.target.closest("#messageEmojiBtn")) return;
+    if (e.target.closest("#dmEmojiBtn")) return;
+    closeEmojiPopover();
+  });
+
+  // Close on Escape
+  on(document, "keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("emojiPopover")?.classList.contains("hidden")) closeEmojiPopover();
+    if (!$("reactionPickerModal")?.classList.contains("hidden")) closeReactionPicker();
+    hideSkinMenu();
+  });
+}
+
+function toggleEmojiPopover(inputEl, inputKey) {
+  if (!$("emojiPopover").classList.contains("hidden") && activeMessageTargetInput === inputEl) {
+    closeEmojiPopover();
+    return;
+  }
+
+  activePickerMode = "message";
+  activeMessageTargetInput = inputEl;
+  activeTab = "emoji";
+
+  // Reset tabs
+  document.querySelectorAll("[data-popover-tab]").forEach(x => {
+    x.classList.toggle("active", x.dataset.popoverTab === "emoji");
+  });
+  $("popoverPaneEmoji")?.classList.remove("hidden");
+  $("popoverPaneCustom")?.classList.add("hidden");
+  $("popoverPaneSearch")?.classList.add("hidden");
+  if ($("popoverSearch")) $("popoverSearch").value = "";
+
+  // Render content
+  renderRecentsRow("popoverRecents", "popoverRecentsTitle", "message");
+  renderFavoritesRow("popoverFavs", "popoverFavsTitle", "message");
+  renderCategoryTiles("popoverCategories", "message");
+
+  // Position above the button
+  const btn = inputKey === "dm" ? $("dmEmojiBtn") : $("messageEmojiBtn");
+  const pop = $("emojiPopover");
+  pop.classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    const rect = btn.getBoundingClientRect();
+    const popRect = pop.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let left = rect.left;
+    let top = rect.top - popRect.height - 8;
+
+    if (left + popRect.width > vw - 10) left = vw - popRect.width - 10;
+    if (left < 10) left = 10;
+
+    if (top < 10) top = rect.bottom + 8;
+
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+
+    // Mark the active button
+    $("messageEmojiBtn")?.classList.toggle("active", inputKey !== "dm");
+    $("dmEmojiBtn")?.classList.toggle("active", inputKey === "dm");
+  });
+}
+
+export function closeEmojiPopover() {
+  $("emojiPopover")?.classList.add("hidden");
+  $("messageEmojiBtn")?.classList.remove("active");
+  $("dmEmojiBtn")?.classList.remove("active");
+  if (activePickerMode === "message") {
+    activePickerMode = null;
+    activeMessageTargetInput = null;
+  }
+  hideSkinMenu();
+}
+
+function refreshCustomGrids() {
+  // Update both pickers if their Custom tab is currently visible
+  if (!$("reactionPickerModal")?.classList.contains("hidden") && !$("reactionPaneCustom")?.classList.contains("hidden")) {
+    renderCustomGrid("reactionCustomGlobal", getGlobalCustom(), "global", "reactionCustomRoom", getRoomCustom(), "room");
+  }
+  if (!$("emojiPopover")?.classList.contains("hidden") && !$("popoverPaneCustom")?.classList.contains("hidden")) {
+    renderCustomGrid("popoverCustomGlobal", getGlobalCustom(), "global", "popoverCustomRoom", getRoomCustom(), "room");
+  }
+}
+
+
+// SHARED RENDERERS
+
+
+function renderRecentsRow(rowId, titleId, mode) {
+  const row = $(rowId);
+  const title = $(titleId);
+  if (!row || !title) return;
 
   const recents = getRecents();
-  container.innerHTML = "";
+  row.innerHTML = "";
+
   if (!recents.length) {
     title.classList.add("hidden");
-    container.classList.add("hidden");
+    row.classList.add("hidden");
     return;
   }
   title.classList.remove("hidden");
-  container.classList.remove("hidden");
+  row.classList.remove("hidden");
 
   for (const emoji of recents) {
-    container.appendChild(makeEmojiTile(emoji));
+    row.appendChild(makeEmojiButton(emoji, mode));
   }
 }
 
-function renderFavoritesRow() {
-  const container = $("reactionFavs");
-  const title = $("reactionFavsTitle");
-  if (!container || !title) return;
+function renderFavoritesRow(rowId, titleId, mode) {
+  const row = $(rowId);
+  const title = $(titleId);
+  if (!row || !title) return;
 
   const favs = getFavorites();
-  container.innerHTML = "";
+  row.innerHTML = "";
+
   if (!favs.length) {
     title.classList.add("hidden");
-    container.classList.add("hidden");
+    row.classList.add("hidden");
     return;
   }
   title.classList.remove("hidden");
-  container.classList.remove("hidden");
+  row.classList.remove("hidden");
 
   for (const emoji of favs) {
-    const tile = makeEmojiTile(emoji);
-    tile.classList.add("is-fav");
-    container.appendChild(tile);
+    const btn = makeEmojiButton(emoji, mode);
+    btn.classList.add("is-fav");
+    row.appendChild(btn);
   }
 }
 
-function renderCategoryTiles() {
-  const container = $("reactionCategories");
+function renderCategoryTiles(containerId, mode) {
+  const container = $(containerId);
   if (!container) return;
   container.innerHTML = "";
 
   const cats = getCategories();
   if (!cats.length) {
-    container.innerHTML = '<p class="reaction-empty">No emojis loaded.</p>';
+    container.innerHTML = '<p class="emoji-empty">No emojis loaded.</p>';
     return;
   }
 
   for (const cat of cats) {
     const header = document.createElement("div");
-    header.className = "rp-cat";
+    header.className = "emoji-cat-header";
     header.textContent = cat.name;
     container.appendChild(header);
 
     const grid = document.createElement("div");
-    grid.className = "reaction-picker";
-    grid.style.marginBottom = "8px";
+    grid.className = "emoji-grid";
 
     for (const emoji of cat.emojis) {
-      grid.appendChild(makeEmojiTile(emoji));
+      grid.appendChild(makeEmojiButton(emoji, mode));
     }
     container.appendChild(grid);
   }
 }
 
-function makeEmojiTile(emoji) {
+function makeEmojiButton(emoji, mode) {
   const btn = document.createElement("button");
-  btn.className = "emoji-tile";
+  btn.className = "emoji-btn";
   btn.type = "button";
   btn.dataset.emoji = emoji;
   btn.textContent = emoji;
@@ -775,45 +904,60 @@ function makeEmojiTile(emoji) {
   if (isFavorite(emoji)) btn.classList.add("is-fav");
 
   const star = document.createElement("span");
-  star.className = "fav-star";
+  star.className = "emoji-fav-star";
   star.textContent = "★";
   btn.appendChild(star);
 
+  // Click → insert/reaction
   btn.addEventListener("click", (e) => {
     e.preventDefault();
-    selectReaction(emoji);
+    e.stopPropagation();
+    pickEmoji(emoji, mode);
   });
 
+  // Right click → toggle favorite
   btn.addEventListener("contextmenu", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     const nowFav = toggleFavorite(emoji);
     btn.classList.toggle("is-fav", nowFav);
-    renderFavoritesRow();
+    if (mode === "reaction") renderFavoritesRow("reactionFavs", "reactionFavsTitle", "reaction");
+    else renderFavoritesRow("popoverFavs", "popoverFavsTitle", "message");
   });
 
+  // Hover → skin menu for tone-capable emojis
   if (supportsSkinTone(emoji)) {
-    btn.addEventListener("mouseenter", () => showSkinPickerFor(btn, emoji));
+    btn.addEventListener("mouseenter", () => {
+      clearTimeout(skinMenuTimeout);
+      showSkinMenu(btn, emoji, mode);
+    });
     btn.addEventListener("mouseleave", () => {
-      setTimeout(() => {
-        const sp = $("reactionSkinPicker");
-        if (!sp) return;
-        if (sp.matches(":hover")) return;
-        if (btn.matches(":hover")) return;
-        hideSkinPicker();
-      }, 200);
+      skinMenuTimeout = setTimeout(() => {
+        if (skinMenuEl && skinMenuEl.matches(":hover")) return;
+        hideSkinMenu();
+      }, 250);
+    });
+  } else {
+    btn.addEventListener("mouseenter", () => {
+      clearTimeout(skinMenuTimeout);
+      hideSkinMenu();
     });
   }
 
   return btn;
 }
 
-function showSkinPickerFor(anchorEl, baseEmoji) {
-  const sp = $("reactionSkinPicker");
-  if (!sp) return;
 
-  sp.innerHTML = "";
+// SKIN TONE MENU
+
+
+function showSkinMenu(anchorEl, baseEmoji, mode) {
+  hideSkinMenu();
+
+  const menu = document.createElement("div");
+  menu.className = "emoji-skin-menu";
+
   const labels = getSkinToneLabels();
-
   for (let i = 0; i < labels.length; i++) {
     const toned = applySkinTone(baseEmoji, i);
     const btn = document.createElement("button");
@@ -823,94 +967,156 @@ function showSkinPickerFor(anchorEl, baseEmoji) {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      selectReaction(toned);
-      hideSkinPicker();
+      pickEmoji(toned, mode);
+      hideSkinMenu();
     });
-    sp.appendChild(btn);
+    menu.appendChild(btn);
   }
+
+  document.body.appendChild(menu);
+  skinMenuEl = menu;
+
+  menu.addEventListener("mouseenter", () => clearTimeout(skinMenuTimeout));
+  menu.addEventListener("mouseleave", () => {
+    skinMenuTimeout = setTimeout(() => hideSkinMenu(), 150);
+  });
 
   const rect = anchorEl.getBoundingClientRect();
-  sp.classList.remove("hidden");
-  const spRect = sp.getBoundingClientRect();
-  const left = Math.min(
-    window.innerWidth - spRect.width - 8,
-    rect.left
-  );
-  const top = rect.top - spRect.height - 6 < 0
-    ? rect.bottom + 6
-    : rect.top - spRect.height - 6;
-  sp.style.left = left + "px";
-  sp.style.top = top + "px";
-  sp.style.position = "fixed";
+  const menuRect = menu.getBoundingClientRect();
+
+  let left = rect.left + rect.width / 2 - menuRect.width / 2;
+  let top = rect.top - menuRect.height - 6;
+
+  if (top < 4) top = rect.bottom + 6;
+  if (left < 4) left = 4;
+  if (left + menuRect.width > window.innerWidth - 4) {
+    left = window.innerWidth - menuRect.width - 4;
+  }
+
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
 }
 
-function hideSkinPicker() {
-  const sp = $("reactionSkinPicker");
-  if (sp) {
-    sp.classList.add("hidden");
-    sp.innerHTML = "";
+function hideSkinMenu() {
+  if (skinMenuEl && skinMenuEl.parentNode) skinMenuEl.parentNode.removeChild(skinMenuEl);
+  skinMenuEl = null;
+}
+
+
+// PICKING AN EMOJI
+
+
+function pickEmoji(emoji, mode) {
+  if (mode === "reaction") {
+    if (!activeReactionTarget) return;
+    const { msgId, isDm } = activeReactionTarget;
+    pushRecent(emoji);
+    toggleReaction(msgId, emoji, isDm);
+    closeReactionPicker();
+  } else if (mode === "message") {
+    insertEmojiIntoInput(emoji);
   }
 }
 
-function renderSearchResults(query) {
-  const container = $("reactionSearchResults");
+function pickCustomEmoji(item, mode) {
+  if (mode === "reaction") {
+    if (!activeReactionTarget) return;
+    const { msgId, isDm } = activeReactionTarget;
+    const marker = ":" + item.name + ":";
+    toggleReaction(msgId, marker, isDm);
+    closeReactionPicker();
+  } else if (mode === "message") {
+    insertEmojiIntoInput(":" + item.name + ":");
+  }
+}
+
+function insertEmojiIntoInput(text) {
+  const input = activeMessageTargetInput;
+  if (!input) return;
+
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+
+  input.value = before + text + after;
+  const newPos = before.length + text.length;
+  input.setSelectionRange(newPos, newPos);
+  input.focus();
+}
+
+
+// SEARCH RESULTS
+
+
+function renderSearchResults(query, containerId) {
+  const container = $(containerId);
   if (!container) return;
 
   const q = (query || "").trim();
   container.innerHTML = "";
 
   if (!q) {
-    container.innerHTML = '<p class="reaction-empty">Type to search…</p>';
+    container.innerHTML = '<p class="emoji-empty">Type to search…</p>';
     return;
   }
 
   const results = searchEmoji(q);
   if (!results.length) {
-    container.innerHTML = '<p class="reaction-empty">No matches.</p>';
+    container.innerHTML = '<p class="emoji-empty">No matches.</p>';
     return;
   }
 
+  const mode = activePickerMode === "message" ? "message" : "reaction";
+
   for (const item of results) {
     if (typeof item === "string") {
-      container.appendChild(makeEmojiTile(item));
+      container.appendChild(makeEmojiButton(item, mode));
     } else if (item && item.custom) {
       const btn = document.createElement("button");
-      btn.className = "emoji-tile";
+      btn.className = "emoji-btn";
       btn.type = "button";
       btn.title = ":" + item.name + ":";
       const img = document.createElement("img");
       img.src = item.dataUrl;
       img.alt = ":" + item.name + ":";
-      img.style.width = "24px";
-      img.style.height = "24px";
-      img.style.objectFit = "contain";
       btn.appendChild(img);
-      btn.addEventListener("click", () => selectCustomReaction(item));
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pickCustomEmoji(item, mode);
+      });
       container.appendChild(btn);
     }
   }
 }
 
-function renderCustomGrids() {
-  renderCustomGrid($("reactionCustomGlobal"), getGlobalCustom(), "global");
-  renderCustomGrid($("reactionCustomRoom"), getRoomCustom(), "room");
+
+// CUSTOM EMOJI GRID
+
+
+function renderCustomGrid(globalId, globalList, globalScope, roomId, roomList, roomScope) {
+  renderCustomGridOne($(globalId), globalList, globalScope);
+  renderCustomGridOne($(roomId), roomList, roomScope);
 }
 
-function renderCustomGrid(container, list, scope) {
+function renderCustomGridOne(container, list, scope) {
   if (!container) return;
   container.innerHTML = "";
 
   if (!list.length) {
     const p = document.createElement("p");
-    p.className = "reaction-empty";
+    p.className = "emoji-empty";
     p.textContent = "No custom emojis yet.";
     container.appendChild(p);
     return;
   }
 
+  const mode = activePickerMode === "message" ? "message" : "reaction";
+
   for (const item of list) {
     const tile = document.createElement("div");
-    tile.className = "custom-emoji-tile";
+    tile.className = "custom-tile";
     tile.title = ":" + item.name + ":";
 
     const img = document.createElement("img");
@@ -918,17 +1124,18 @@ function renderCustomGrid(container, list, scope) {
     img.alt = ":" + item.name + ":";
     tile.appendChild(img);
 
-    const canDelete = canDeleteCustomEmoji(scope, item);
-    if (canDelete) {
+    if (canDeleteCustomEmoji(scope, item)) {
       const del = document.createElement("button");
-      del.className = "delete-tile";
+      del.className = "custom-tile-del";
       del.textContent = "✕";
       del.title = "Delete";
       del.addEventListener("click", async (e) => {
         e.stopPropagation();
+        e.preventDefault();
         if (!confirm("Delete :" + item.name + ":?")) return;
         try {
           await deleteCustomEmoji(item.id, scope);
+          window.__illoToast?.("Deleted");
         } catch (err) {
           window.__illoToast?.(err.message || "Could not delete");
         }
@@ -936,7 +1143,12 @@ function renderCustomGrid(container, list, scope) {
       tile.appendChild(del);
     }
 
-    tile.addEventListener("click", () => selectCustomReaction(item));
+    tile.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      pickCustomEmoji(item, mode);
+    });
+
     container.appendChild(tile);
   }
 }
@@ -944,35 +1156,14 @@ function renderCustomGrid(container, list, scope) {
 function canDeleteCustomEmoji(scope, item) {
   if (!state.me) return false;
   if (item.uploadedBy === state.me.uid) return true;
-  if (scope === "global") {
-    return state.admins.includes(state.me.uid);
-  }
-  if (scope === "room") {
-    return state.roomMeta && state.roomMeta.adminUid === state.me.uid;
-  }
+  if (scope === "global") return state.admins.includes(state.me.uid);
+  if (scope === "room") return state.roomMeta && state.roomMeta.adminUid === state.me.uid;
   return false;
 }
 
-function selectReaction(emoji) {
-  if (!currentReactionTarget) return;
-  const { msgId, isDm } = currentReactionTarget;
-  pushRecent(emoji);
-  toggleReaction(msgId, emoji, isDm);
-  $("reactionPickerModal").classList.add("hidden");
-  currentReactionTarget = null;
-  state.reactionTarget = null;
-  hideSkinPicker();
-}
 
-function selectCustomReaction(item) {
-  if (!currentReactionTarget) return;
-  const { msgId, isDm } = currentReactionTarget;
-  const marker = ":" + item.name + ":";
-  toggleReaction(msgId, marker, isDm);
-  $("reactionPickerModal").classList.add("hidden");
-  currentReactionTarget = null;
-  state.reactionTarget = null;
-}
+// ADD CUSTOM EMOJI MODAL
+
 
 let pendingNewEmojiDataUrl = null;
 
@@ -995,7 +1186,7 @@ function openAddEmojiModal() {
   $("addEmojiModal").classList.remove("hidden");
 }
 
-async function previewNewEmoji() {
+function previewNewEmoji() {
   const file = $("newEmojiFile").files[0];
   if (!file) return;
   if (file.size > 90 * 1024) {
@@ -1027,6 +1218,9 @@ async function handleSaveCustomEmoji() {
   if (isGlobal && !(state.me && state.admins.includes(state.me.uid))) {
     return $("addEmojiError").textContent = "Only admins can create global emojis";
   }
+  if (!isGlobal && !state.roomCode) {
+    return $("addEmojiError").textContent = "Join a room to add room emojis";
+  }
 
   try {
     await addCustomEmoji({
@@ -1036,11 +1230,14 @@ async function handleSaveCustomEmoji() {
     });
     $("addEmojiModal").classList.add("hidden");
     window.__illoToast?.("Emoji added");
-    setTimeout(renderCustomGrids, 200);
   } catch (e) {
     $("addEmojiError").textContent = e.message;
   }
 }
+
+
+// MORE MENU
+
 
 function openMoreMenu(msgId, msg, isOwn, isDm, sender, plainText) {
   const menu = $("moreMenu");
@@ -1116,4 +1313,5 @@ export function resetChatUI() {
   state.lastGroupUid = null;
   state.lastGroupTime = 0;
   setReply(null);
+  closeEmojiPopover();
 }
