@@ -29,7 +29,7 @@ import { initRooms, requestJoinRoom, enterRoom, leaveRoom } from "./features/roo
 import { initMentions, hideAutocomplete } from "./features/mentions.js";
 import {
   initChat, renderMessage, sendMessage, resetChatUI,
-  handleFileObject, setReply, spamCheck
+  handleFileObject, setReply
 } from "./features/chat.js";
 import {
   initDm, openDmPanel, closeDm, resetDmUI, resetDmLocalState,
