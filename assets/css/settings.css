@@ -16,3 +16,32 @@
   .dc-body { padding: 50px 16px 16px; }
   .dc-name { font-size: 20px; }
 }
+
+.color-row .color-warn {
+  color: #e8a44a;
+  font-size: 12px;
+  cursor: help;
+  margin-left: 4px;
+}
+
+.color-row input.color-text-only {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  padding: 6px 8px;
+  outline: none;
+  border-radius: 4px;
+}
+
+.color-row input.color-text-only:focus {
+  border-color: var(--accent);
+}
+
+.color-row input.color-text-only::placeholder {
+  color: var(--text-dim);
+  font-style: italic;
+}
