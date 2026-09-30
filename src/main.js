@@ -509,6 +509,5 @@ async function boot() {
 
     EmojiService.startCustomEmojiListeners(null);
   };
-}
 
 boot().catch(e => console.error("[boot]", e));
