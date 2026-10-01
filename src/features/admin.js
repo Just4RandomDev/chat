@@ -378,8 +378,6 @@ function refreshRoles() {
   const canGlobal = RolesService.canManageRoles("global");
   const canRoom = RolesService.canManageRoles("room");
 
-  $("adminGlobalRolesSection")?.classList.toggle("hidden", !canGlobal && RolesService.getGlobalRoles().length === 0);
-  $("adminGlobalRolesHint")?.classList.toggle("hidden", canGlobal);
   $("adminGlobalRolesActions")?.classList.toggle("hidden", !canGlobal);
   $("adminCreateRoomRoleBtn")?.classList.toggle("hidden", !canRoom);
   $("adminRoomRolesHint").textContent = canRoom
@@ -395,7 +393,9 @@ function renderRoleList(containerId, roles, scope) {
   if (!roles.length) {
     const p = document.createElement("div");
     p.className = "admin-role-empty";
-    p.textContent = "No roles yet.";
+    p.textContent = scope === "global"
+      ? "No global roles yet. Create one to assign site-wide."
+      : "No roles yet.";
     container.appendChild(p);
     return;
   }
@@ -560,7 +560,7 @@ async function handleSaveRole() {
 
 async function handleDeleteRole() {
   if (!editingRole || editingRole.isNew) return;
-  if (!confirm("Delete this role? Users with it will fall back to Member.")) return;
+  if (!confirm("Delete this role? Users with it will lose it.")) return;
 
   try {
     await RolesService.deleteRole(editingRole.scope, editingRole.roleId);
