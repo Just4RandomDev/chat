@@ -18,6 +18,17 @@ export function initUsers(meUser) {
   if (me) loadBlocked();
 }
 
+function buildRoleBadge(uid) {
+  const role = RolesService.getDisplayRole(uid);
+  if (!role) return null;
+  const b = document.createElement("span");
+  b.className = "role-badge";
+  b.textContent = role.name;
+  b.style.background = role.color;
+  b.style.color = "#fff";
+  return b;
+}
+
 async function loadBlocked() {
   if (!me) return;
   try {
@@ -201,11 +212,16 @@ function buildUserRow(entry, isOnline) {
   if (profile.nameColor) nameSpan.style.color = profile.nameColor;
   nameLine.appendChild(nameSpan);
 
-  if (state.admins.includes(uid)) {
-    const b = document.createElement("span");
-    b.className = "u-badge";
-    b.textContent = "ADMIN";
-    nameLine.appendChild(b);
+  if (uid !== "system") {
+    const roleBadge = RolesService.getDisplayRole(uid);
+    if (roleBadge) {
+      const b = document.createElement("span");
+      b.className = "u-badge role";
+      b.textContent = roleBadge.name;
+      b.style.background = roleBadge.color;
+      b.style.color = "#fff";
+      nameLine.appendChild(b);
+    }
   }
 
   if (uid === "system") {
@@ -297,11 +313,9 @@ export async function openUserProfile(uid, opts = {}) {
 
   const badges = $("userProfileBadges");
   badges.innerHTML = "";
-  if (isAdminUser) {
-    const b = document.createElement("span");
-    b.className = "dc-badge admin";
-    b.textContent = "ADMIN";
-    badges.appendChild(b);
+  if (!isBotUser) {
+    const roleBadge = buildRoleBadge(uid);
+    if (roleBadge) badges.appendChild(roleBadge);
   }
   if (isBotUser) {
     const b = document.createElement("span");
@@ -426,7 +440,9 @@ export function openMyProfile(opts = {}) {
 
   const badges = $("profileBadges");
   badges.innerHTML = "";
-  if (opts.isGlobalAdmin?.()) {
+  const roleBadge = buildRoleBadge(m.uid);
+  if (roleBadge) badges.appendChild(roleBadge);
+  else if (opts.isGlobalAdmin?.()) {
     const adm = document.createElement("span");
     adm.className = "dc-badge admin";
     adm.textContent = "ADMIN";
@@ -507,3 +523,8 @@ function readAsDataURL(file) {
     r.readAsDataURL(file);
   });
 }
+
+RolesService.onRolesChanged(() => {
+  // Re-render the user list so new role badges appear.
+  renderUserList().catch(() => {});
+});
