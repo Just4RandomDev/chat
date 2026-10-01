@@ -140,7 +140,7 @@ async function openDm(otherUid) {
     const entries = Object.entries(data)
       .sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
 
-    const wasAtBottom = shouldStickToBottomSafe(container);
+    const wasAtBottom = isAtBottom(container);
     const newEntries = [];
 
     for (const [id, msg] of entries) {
