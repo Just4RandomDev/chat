@@ -6,7 +6,6 @@ import { ref, get, set, update, remove, onValue } from "../firebase/database.js"
 import { db } from "../firebase/config.js";
 import { state } from "../core/state.js";
 
-// Default roles seeded on first boot.
 export const DEFAULT_ROLES = [
   {
     id: "owner",
@@ -14,13 +13,7 @@ export const DEFAULT_ROLES = [
     color: "#d94a4a",
     order: 0,
     isDefault: true,
-    permissions: {
-      kick: true,
-      wipe: true,
-      editRoom: true,
-      deleteRoom: true,
-      manageRoles: true
-    }
+    permissions: { kick: true, wipe: true, editRoom: true, deleteRoom: true, manageRoles: true }
   },
   {
     id: "admin",
@@ -28,13 +21,7 @@ export const DEFAULT_ROLES = [
     color: "#ff5a5a",
     order: 1,
     isDefault: true,
-    permissions: {
-      kick: true,
-      wipe: true,
-      editRoom: true,
-      deleteRoom: false,
-      manageRoles: false
-    }
+    permissions: { kick: true, wipe: true, editRoom: true, deleteRoom: false, manageRoles: false }
   },
   {
     id: "moderator",
@@ -42,13 +29,7 @@ export const DEFAULT_ROLES = [
     color: "#6fa8ff",
     order: 2,
     isDefault: true,
-    permissions: {
-      kick: true,
-      wipe: false,
-      editRoom: false,
-      deleteRoom: false,
-      manageRoles: false
-    }
+    permissions: { kick: true, wipe: false, editRoom: false, deleteRoom: false, manageRoles: false }
   },
   {
     id: "member",
@@ -56,13 +37,7 @@ export const DEFAULT_ROLES = [
     color: "#6fc77f",
     order: 3,
     isDefault: true,
-    permissions: {
-      kick: false,
-      wipe: false,
-      editRoom: false,
-      deleteRoom: false,
-      manageRoles: false
-    }
+    permissions: { kick: false, wipe: false, editRoom: false, deleteRoom: false, manageRoles: false }
   }
 ];
 
@@ -74,11 +49,10 @@ export const EMPTY_PERMISSIONS = {
   manageRoles: false
 };
 
-// In-memory cache
-let globalRoles = [];        // [{id, name, color, permissions, order, isDefault}]
-let globalAssignments = {};  // { uid: roleId }
-let roomRoles = [];          // [{id, name, color, permissions, order, isDefault}]
-let roomAssignments = {};    // { uid: roleId }
+let globalRoles = [];
+let globalAssignments = {};
+let roomRoles = [];
+let roomAssignments = {};
 let currentRoomCode = null;
 
 let unsubGlobalRoles = null;
@@ -96,7 +70,6 @@ export async function initRoles(me) {
   startGlobalListeners();
 }
 
-// Seed default roles into Firebase if the node is empty.
 async function seedGlobalRolesIfEmpty() {
   try {
     const snap = await get(ref(db, "globalRoles"));
@@ -110,7 +83,6 @@ async function seedGlobalRolesIfEmpty() {
   }
 }
 
-// Seed default roles for a specific room if empty.
 export async function seedRoomRolesIfEmpty(roomCode) {
   if (!roomCode) return;
   try {
@@ -205,15 +177,17 @@ export function getRoomRole(roleId) {
 }
 
 // PERMISSION RESOLUTION
-// Order:
-//   1. auth.uid === rooms/{code}/adminUid → room Owner permissions
-//   2. global assignment with role id "owner" → owner permissions
-//   3. room assignment → its permissions
-//   4. global assignment → its permissions
-//   5. fallback → empty permissions
 
 export function resolvePermissions(uid, roomCode, roomMeta) {
   if (!uid) return { ...EMPTY_PERMISSIONS };
+
+  // 0. Global admin (admins.json)
+  if (state.admins.includes(uid)) {
+    const ownerRole = globalRoles.find(r => r.id === "owner") ||
+                       roomRoles.find(r => r.id === "owner") ||
+                       DEFAULT_ROLES[0];
+    return { ...ownerRole.permissions };
+  }
 
   // 1. Room owner
   if (roomMeta && roomMeta.adminUid === uid) {
@@ -223,11 +197,10 @@ export function resolvePermissions(uid, roomCode, roomMeta) {
     return { ...ownerRole.permissions };
   }
 
-  // 2. Global owner
+  // 2. Global owner assignment
   const globalRoleId = globalAssignments[uid];
   if (globalRoleId === "owner") {
-    const role = globalRoles.find(r => r.id === "owner") ||
-                  DEFAULT_ROLES[0];
+    const role = globalRoles.find(r => r.id === "owner") || DEFAULT_ROLES[0];
     return { ...role.permissions };
   }
 
@@ -244,7 +217,7 @@ export function resolvePermissions(uid, roomCode, roomMeta) {
     if (role) return { ...role.permissions };
   }
 
-  // 5. Fallback — Member
+  // 5. Fallback
   return { ...EMPTY_PERMISSIONS };
 }
 
@@ -260,7 +233,6 @@ export function hasPermission(perm) {
 
 // ROLE CRUD
 
-// Scope: "global" | "room"
 export async function createRole(scope, { name, color, permissions }) {
   if (!state.me) throw new Error("Not logged in");
   if (!canManageRoles(scope)) throw new Error("No permission to manage roles");
@@ -345,16 +317,13 @@ export async function deleteRole(scope, roleId) {
   await remove(ref(db, path));
 }
 
-// Can the current user manage roles in this scope?
 export function canManageRoles(scope) {
   if (!state.me) return false;
 
-  // Global role management: only admins.json UIDs
   if (scope === "global") {
     return state.admins.includes(state.me.uid);
   }
 
-  // Room role management: room owner or global admin
   if (scope === "room") {
     if (state.admins.includes(state.me.uid)) return true;
     if (state.roomMeta && state.roomMeta.adminUid === state.me.uid) return true;
@@ -363,9 +332,8 @@ export function canManageRoles(scope) {
   return false;
 }
 
-// ASSIGN ROLE TO USER
+// ASSIGNMENT
 
-// scope: "global" | "room"
 export async function assignRole(scope, uid, roleId) {
   if (!state.me) throw new Error("Not logged in");
   if (!canManageRoles(scope)) throw new Error("No permission to assign roles");
@@ -374,7 +342,6 @@ export async function assignRole(scope, uid, roleId) {
     throw new Error("Cannot change your own owner role");
   }
 
-  // Validate the role exists
   const list = scope === "global" ? globalRoles : roomRoles;
   const role = list.find(r => r.id === roleId);
   if (!role) throw new Error("Role not found");
