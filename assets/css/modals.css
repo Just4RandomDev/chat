@@ -692,3 +692,59 @@
 
 .more-menu button.danger { color: var(--danger); }
 .more-menu button.danger:hover { background: var(--danger-bg); }
+
+.user-profile-role-section {
+  padding-top: 4px;
+}
+
+.user-profile-role-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.user-profile-role-scope {
+  flex: 0 0 100px;
+}
+
+.user-profile-role-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-profile-role-scope,
+.user-profile-role-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.user-profile-role-scope:focus,
+.user-profile-role-select:focus {
+  border-color: var(--accent);
+}
+
+.user-profile-role-save {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.user-profile-role-save:hover {
+  background: var(--accent-hover);
+}
