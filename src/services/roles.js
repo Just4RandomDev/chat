@@ -1,12 +1,13 @@
 // ROLES SERVICE
 // Role CRUD, permission resolution, caching.
-// Two scopes: global (admins.json) + per-room (room owner).
+// Global roles start empty. Room roles seed with 4 defaults.
 
 import { ref, get, set, update, remove, onValue } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
 import { state } from "../core/state.js";
 
-export const DEFAULT_ROLES = [
+// Room-only default roles (seeded when a room is created)
+export const ROOM_DEFAULT_ROLES = [
   {
     id: "owner",
     name: "Owner",
@@ -66,30 +67,16 @@ let listeners = new Set();
 
 export async function initRoles(me) {
   if (!me) return;
-  await seedGlobalRolesIfEmpty();
   startGlobalListeners();
 }
 
-async function seedGlobalRolesIfEmpty() {
-  try {
-    const snap = await get(ref(db, "globalRoles"));
-    if (!snap.exists()) {
-      const payload = {};
-      for (const r of DEFAULT_ROLES) payload[r.id] = r;
-      await set(ref(db, "globalRoles"), payload);
-    }
-  } catch (e) {
-    console.warn("[roles] seed global failed", e);
-  }
-}
-
-export async function seedRoomRolesIfEmpty(roomCode) {
+async function seedRoomRolesIfEmpty(roomCode) {
   if (!roomCode) return;
   try {
     const snap = await get(ref(db, `rooms/${roomCode}/roles`));
     if (!snap.exists()) {
       const payload = {};
-      for (const r of DEFAULT_ROLES) payload[r.id] = r;
+      for (const r of ROOM_DEFAULT_ROLES) payload[r.id] = r;
       await set(ref(db, `rooms/${roomCode}/roles`), payload);
     }
   } catch (e) {
@@ -119,6 +106,8 @@ function startGlobalListeners() {
 export function stopGlobalListeners() {
   if (unsubGlobalRoles) { try { unsubGlobalRoles(); } catch {} unsubGlobalRoles = null; }
   if (unsubGlobalAssignments) { try { unsubGlobalAssignments(); } catch {} unsubGlobalAssignments = null; }
+  globalRoles = [];
+  globalAssignments = {};
 }
 
 export function startRoomListeners(roomCode) {
@@ -183,41 +172,31 @@ export function resolvePermissions(uid, roomCode, roomMeta) {
 
   // 0. Global admin (admins.json)
   if (state.admins.includes(uid)) {
-    const ownerRole = globalRoles.find(r => r.id === "owner") ||
-                       roomRoles.find(r => r.id === "owner") ||
-                       DEFAULT_ROLES[0];
-    return { ...ownerRole.permissions };
+    return { kick: true, wipe: true, editRoom: true, deleteRoom: true, manageRoles: true };
   }
 
   // 1. Room owner
   if (roomMeta && roomMeta.adminUid === uid) {
     const ownerRole = roomRoles.find(r => r.id === "owner") ||
-                       globalRoles.find(r => r.id === "owner") ||
-                       DEFAULT_ROLES[0];
+                       ROOM_DEFAULT_ROLES[0];
     return { ...ownerRole.permissions };
   }
 
-  // 2. Global owner assignment
-  const globalRoleId = globalAssignments[uid];
-  if (globalRoleId === "owner") {
-    const role = globalRoles.find(r => r.id === "owner") || DEFAULT_ROLES[0];
-    return { ...role.permissions };
-  }
-
-  // 3. Room assignment
+  // 2. Room assignment
   const roomRoleId = roomAssignments[uid];
   if (roomRoleId) {
     const role = roomRoles.find(r => r.id === roomRoleId);
     if (role) return { ...role.permissions };
   }
 
-  // 4. Global assignment
+  // 3. Global assignment
+  const globalRoleId = globalAssignments[uid];
   if (globalRoleId) {
     const role = globalRoles.find(r => r.id === globalRoleId);
     if (role) return { ...role.permissions };
   }
 
-  // 5. Fallback
+  // 4. Fallback
   return { ...EMPTY_PERMISSIONS };
 }
 
@@ -229,6 +208,64 @@ export function getMyPermissions() {
 export function hasPermission(perm) {
   const p = getMyPermissions();
   return !!p[perm];
+}
+
+// DISPLAY ROLE
+// Returns the role to display for a user.
+// Room role wins over global role. Global admins show as Owner.
+export function getDisplayRole(uid) {
+  if (!uid) return null;
+
+  if (state.admins.includes(uid)) {
+    return {
+      id: "owner",
+      name: "Owner",
+      color: "#d94a4a",
+      isGlobalAdmin: true,
+      isRoomOwner: false
+    };
+  }
+
+  if (state.roomMeta && state.roomMeta.adminUid === uid) {
+    const role = roomRoles.find(r => r.id === "owner");
+    return {
+      id: "owner",
+      name: role?.name || "Owner",
+      color: role?.color || "#d94a4a",
+      isGlobalAdmin: false,
+      isRoomOwner: true
+    };
+  }
+
+  const roomRoleId = roomAssignments[uid];
+  if (roomRoleId) {
+    const role = roomRoles.find(r => r.id === roomRoleId);
+    if (role) {
+      return {
+        id: role.id,
+        name: role.name,
+        color: role.color || "#6fc77f",
+        isGlobalAdmin: false,
+        isRoomOwner: false
+      };
+    }
+  }
+
+  const globalRoleId = globalAssignments[uid];
+  if (globalRoleId) {
+    const role = globalRoles.find(r => r.id === globalRoleId);
+    if (role) {
+      return {
+        id: role.id,
+        name: role.name,
+        color: role.color || "#6fc77f",
+        isGlobalAdmin: false,
+        isRoomOwner: false
+      };
+    }
+  }
+
+  return null;
 }
 
 // ROLE CRUD
@@ -338,9 +375,6 @@ export async function assignRole(scope, uid, roleId) {
   if (!state.me) throw new Error("Not logged in");
   if (!canManageRoles(scope)) throw new Error("No permission to assign roles");
   if (!uid) throw new Error("Missing user");
-  if (uid === state.me.uid && scope === "global" && roleId === "owner") {
-    throw new Error("Cannot change your own owner role");
-  }
 
   const list = scope === "global" ? globalRoles : roomRoles;
   const role = list.find(r => r.id === roleId);
@@ -374,67 +408,4 @@ export function getRoleColor(scope, roleId) {
   const list = scope === "global" ? globalRoles : roomRoles;
   const r = list.find(x => x.id === roleId);
   return r ? r.color : "#6fc77f";
-}
-
-// Returns the role to display for a user in the current context.
-// Room role wins over global role; global admins always show as Owner.
-// Returns { name, color, isGlobalAdmin, isRoomOwner } or null if Member.
-export function getDisplayRole(uid) {
-  if (!uid) return null;
-
-  // Global admin — show as Owner (accent color)
-  if (state.admins.includes(uid)) {
-    return {
-      id: "owner",
-      name: "Owner",
-      color: "#d94a4a",
-      isGlobalAdmin: true,
-      isRoomOwner: false
-    };
-  }
-
-  // Room owner (of the room we're currently in)
-  if (state.roomMeta && state.roomMeta.adminUid === uid) {
-    const role = roomRoles.find(r => r.id === "owner") ||
-                 globalRoles.find(r => r.id === "owner");
-    return {
-      id: "owner",
-      name: role?.name || "Owner",
-      color: role?.color || "#d94a4a",
-      isGlobalAdmin: false,
-      isRoomOwner: true
-    };
-  }
-
-  // Room role wins over global role
-  const roomRoleId = roomAssignments[uid];
-  if (roomRoleId) {
-    const role = roomRoles.find(r => r.id === roomRoleId);
-    if (role) {
-      return {
-        id: role.id,
-        name: role.name,
-        color: role.color || "#6fc77f",
-        isGlobalAdmin: false,
-        isRoomOwner: false
-      };
-    }
-  }
-
-  const globalRoleId = globalAssignments[uid];
-  if (globalRoleId) {
-    const role = globalRoles.find(r => r.id === globalRoleId);
-    if (role) {
-      return {
-        id: role.id,
-        name: role.name,
-        color: role.color || "#6fc77f",
-        isGlobalAdmin: false,
-        isRoomOwner: false
-      };
-    }
-  }
-
-  // Member — return null so callers can decide whether to render anything
-  return null;
 }
