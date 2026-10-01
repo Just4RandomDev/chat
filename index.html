@@ -199,6 +199,7 @@
   <div class="admin-tabs">
     <button class="admin-tab active" data-admin-tab="overview">Overview</button>
     <button class="admin-tab" data-admin-tab="members">Members</button>
+    <button class="admin-tab" data-admin-tab="roles">Roles</button>
     <button class="admin-tab" data-admin-tab="mod">Moderation</button>
     <button class="admin-tab" data-admin-tab="room">Room</button>
     <button class="admin-tab" data-admin-tab="danger">Danger</button>
@@ -220,6 +221,22 @@
   <div class="admin-pane hidden" id="adminPaneMembers">
     <input type="text" class="admin-search" id="adminMemberSearch" placeholder="Search members…">
     <div class="admin-list" id="adminMemberList"></div>
+  </div>
+
+  <div class="admin-pane hidden" id="adminPaneRoles">
+    <div class="admin-section-title">Room Roles</div>
+    <p class="admin-role-hint" id="adminRoomRolesHint">Manage roles for this room.</p>
+    <div class="admin-role-list" id="adminRoomRoleList"></div>
+    <div class="admin-actions-row">
+      <button class="admin-btn primary" id="adminCreateRoomRoleBtn">+ New Room Role</button>
+    </div>
+
+    <div class="admin-section-title admin-section-title-spaced" id="adminGlobalRolesSection">Global Roles</div>
+    <p class="admin-role-hint hidden" id="adminGlobalRolesHint">Only global admins can manage global roles.</p>
+    <div class="admin-role-list" id="adminGlobalRoleList"></div>
+    <div class="admin-actions-row hidden" id="adminGlobalRolesActions">
+      <button class="admin-btn primary" id="adminCreateGlobalRoleBtn">+ New Global Role</button>
+    </div>
   </div>
 
   <div class="admin-pane hidden" id="adminPaneMod">
@@ -287,6 +304,17 @@
         <div class="dc-section">
           <div class="dc-section-title">MEMBER SINCE</div>
           <div class="dc-meta-row" id="userProfileMeta">—</div>
+        </div>
+        <div class="dc-section user-profile-role-section hidden" id="userProfileRoleSection">
+          <div class="dc-section-title">ROLE</div>
+          <div class="user-profile-role-row">
+            <select id="userProfileRoleScope" class="user-profile-role-scope">
+              <option value="room">Room</option>
+              <option value="global">Global</option>
+            </select>
+            <select id="userProfileRoleSelect" class="user-profile-role-select"></select>
+            <button id="userProfileRoleSaveBtn" class="user-profile-role-save">Save</button>
+          </div>
         </div>
         <div class="dc-actions">
           <button id="userProfileDmBtn" data-i18n="sendDm">Send DM</button>
@@ -621,13 +649,57 @@
   </div>
 </div>
 
+<div class="modal-backdrop hidden" id="roleEditorModal">
+  <div class="modal role-editor-modal">
+    <h2 id="roleEditorTitle">Edit Role</h2>
+    <p class="modal-sub" id="roleEditorSubtitle">Changes apply immediately.</p>
+
+    <label class="field">
+      <span>Role name</span>
+      <input type="text" id="roleNameInput" maxlength="24" placeholder="Role name" autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span>Color</span>
+      <div class="role-color-row">
+        <input type="color" id="roleColorInput" value="#6fc77f">
+        <input type="text" id="roleColorHex" maxlength="7" placeholder="#6fc77f">
+      </div>
+    </label>
+
+    <div class="field">
+      <span>Permissions</span>
+      <div class="role-perms-grid">
+        <label class="role-perm"><input type="checkbox" id="rolePermKick"><span>Kick users</span></label>
+        <label class="role-perm"><input type="checkbox" id="rolePermWipe"><span>Wipe messages</span></label>
+        <label class="role-perm"><input type="checkbox" id="rolePermEditRoom"><span>Edit room</span></label>
+        <label class="role-perm"><input type="checkbox" id="rolePermDeleteRoom"><span>Delete room</span></label>
+        <label class="role-perm"><input type="checkbox" id="rolePermManageRoles"><span>Manage roles</span></label>
+      </div>
+    </div>
+
+    <div class="role-order-row">
+      <span class="role-order-label">Priority</span>
+      <input type="number" id="roleOrderInput" min="0" max="999" step="1" value="10">
+      <span class="role-order-hint">Lower number = higher in the list</span>
+    </div>
+
+    <p class="auth-error" id="roleEditorError"></p>
+
+    <div class="modal-actions">
+      <button id="roleEditorSaveBtn">Save</button>
+      <button class="ghost" id="roleEditorCancelBtn">Cancel</button>
+      <button class="danger hidden" id="roleEditorDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop hidden" id="moreMenuModal">
   <div class="modal more-modal">
     <div class="more-menu" id="moreMenu"></div>
   </div>
 </div>
 
-<!-- Emoji popover — anchored above the input emoji button -->
 <div class="emoji-popover hidden" id="emojiPopover">
   <div class="emoji-popover-header">
     <div class="emoji-tabs compact">
