@@ -66,10 +66,21 @@ window.__illoRolesService = RolesService;
 let emojiCategories = [];
 
 async function loadAdmins() {
+  state.admins = [];
   try {
-    const data = await loadJson("data/admins.json");
-    state.admins = Array.isArray(data.admins) ? data.admins : [];
-  } catch { state.admins = []; }
+    const res = await fetch("data/admins.json", { cache: "no-store" });
+    if (!res.ok) {
+      console.warn("[admins] data/admins.json not found (status " + res.status + ")");
+      return;
+    }
+    const data = await res.json();
+    if (Array.isArray(data?.admins)) {
+      state.admins = data.admins.filter(x => typeof x === "string" && x.length > 10);
+    }
+  } catch (e) {
+    console.warn("[admins] failed to load data/admins.json:", e.message);
+    state.admins = [];
+  }
 }
 
 async function loadEmojis() {
@@ -463,6 +474,14 @@ async function boot() {
     onLeaveRoom: async () => { await leaveRoom(); },
     resetChatUI,
     onRoomDeleted: () => { showLobbyView(); }
+  });
+
+  RolesService.onRolesChanged(() => {
+    const drawer = $("adminDrawer");
+    const pane = $("adminPaneRoles");
+    if (drawer && !drawer.classList.contains("hidden") && pane && !pane.classList.contains("hidden")) {
+      window.__illoRefreshRoles?.();
+    }
   });
 
   initUsers(null);
