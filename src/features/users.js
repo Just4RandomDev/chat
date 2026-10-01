@@ -18,17 +18,6 @@ export function initUsers(meUser) {
   if (me) loadBlocked();
 }
 
-function buildRoleBadge(uid) {
-  const role = RolesService.getDisplayRole(uid);
-  if (!role) return null;
-  const b = document.createElement("span");
-  b.className = "role-badge";
-  b.textContent = role.name;
-  b.style.background = role.color;
-  b.style.color = "#fff";
-  return b;
-}
-
 async function loadBlocked() {
   if (!me) return;
   try {
@@ -74,6 +63,17 @@ export function memberSince(createdAt) {
 
 export function applyNameColor(span, profile) {
   if (profile && profile.nameColor) span.style.color = profile.nameColor;
+}
+
+function buildRoleBadge(uid) {
+  const role = RolesService.getDisplayRole(uid);
+  if (!role) return null;
+  const b = document.createElement("span");
+  b.className = "role-badge";
+  b.textContent = role.name;
+  b.style.background = role.color;
+  b.style.color = "#fff";
+  return b;
 }
 
 export async function renderUserList() {
@@ -360,6 +360,7 @@ function renderUserProfileRoleSection(uid, isSelf, isBotUser) {
   section.classList.remove("hidden");
 
   const scopeSel = $("userProfileRoleScope");
+  if (!scopeSel) return;
 
   Array.from(scopeSel.options).forEach(opt => {
     if (opt.value === "global") opt.disabled = !canManageGlobal;
@@ -378,6 +379,7 @@ function renderUserProfileRoleSection(uid, isSelf, isBotUser) {
       : RolesService.getRoomAssignment(uid);
 
     const roleSel = $("userProfileRoleSelect");
+    if (!roleSel) return;
     roleSel.innerHTML = "";
 
     const noneOpt = document.createElement("option");
@@ -400,23 +402,26 @@ function renderUserProfileRoleSection(uid, isSelf, isBotUser) {
   newScopeSel.addEventListener("change", repopulateRoles);
 
   const saveBtn = $("userProfileRoleSaveBtn");
-  const newSaveBtn = saveBtn.cloneNode(true);
-  saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-  newSaveBtn.addEventListener("click", async () => {
-    const scope = newScopeSel.value;
-    const roleId = $("userProfileRoleSelect").value;
-    try {
-      if (!roleId) {
-        await RolesService.unassignRole(scope, uid);
-        window.__illoToast?.("Role removed");
-      } else {
-        await RolesService.assignRole(scope, uid, roleId);
-        window.__illoToast?.("Role assigned");
+  if (saveBtn) {
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    newSaveBtn.addEventListener("click", async () => {
+      const scope = newScopeSel.value;
+      const roleId = $("userProfileRoleSelect").value;
+      try {
+        if (!roleId) {
+          await RolesService.unassignRole(scope, uid);
+          window.__illoToast?.("Role removed");
+        } else {
+          await RolesService.assignRole(scope, uid, roleId);
+          window.__illoToast?.("Role assigned");
+        }
+        setTimeout(() => { renderUserList().catch(() => {}); }, 250);
+      } catch (e) {
+        window.__illoToast?.(e.message || "Could not assign role");
       }
-    } catch (e) {
-      window.__illoToast?.(e.message || "Could not assign role");
-    }
-  });
+    });
+  }
 
   repopulateRoles();
 }
@@ -449,7 +454,89 @@ export function openMyProfile(opts = {}) {
     badges.appendChild(adm);
   }
 
+  renderMyProfileRoleSection(m.uid);
+
   $("profileModal").classList.remove("hidden");
+}
+
+function renderMyProfileRoleSection(uid) {
+  const section = $("myProfileRoleSection");
+  if (!section) return;
+
+  const canManageGlobal = RolesService.canManageRoles("global");
+  const canManageRoom = RolesService.canManageRoles("room");
+
+  if (!canManageGlobal && !canManageRoom) {
+    section.classList.add("hidden");
+    return;
+  }
+  section.classList.remove("hidden");
+
+  const scopeSel = $("myProfileRoleScope");
+  if (!scopeSel) return;
+
+  Array.from(scopeSel.options).forEach(opt => {
+    if (opt.value === "global") opt.disabled = !canManageGlobal;
+    if (opt.value === "room") opt.disabled = !canManageRoom;
+  });
+
+  scopeSel.value = canManageRoom ? "room" : "global";
+
+  const repopulateRoles = () => {
+    const scope = $("myProfileRoleScope").value;
+    const roles = scope === "global"
+      ? RolesService.getGlobalRoles()
+      : RolesService.getRoomRoles();
+    const current = scope === "global"
+      ? RolesService.getGlobalAssignment(uid)
+      : RolesService.getRoomAssignment(uid);
+
+    const roleSel = $("myProfileRoleSelect");
+    if (!roleSel) return;
+    roleSel.innerHTML = "";
+
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "";
+    noneOpt.textContent = "— No role —";
+    roleSel.appendChild(noneOpt);
+
+    for (const r of roles) {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      opt.textContent = r.name + (r.isDefault ? "" : " *");
+      roleSel.appendChild(opt);
+    }
+
+    roleSel.value = current || "";
+  };
+
+  const newScopeSel = scopeSel.cloneNode(true);
+  scopeSel.parentNode.replaceChild(newScopeSel, scopeSel);
+  newScopeSel.addEventListener("change", repopulateRoles);
+
+  const saveBtn = $("myProfileRoleSaveBtn");
+  if (saveBtn) {
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    newSaveBtn.addEventListener("click", async () => {
+      const scope = newScopeSel.value;
+      const roleId = $("myProfileRoleSelect").value;
+      try {
+        if (!roleId) {
+          await RolesService.unassignRole(scope, uid);
+          window.__illoToast?.("Role removed");
+        } else {
+          await RolesService.assignRole(scope, uid, roleId);
+          window.__illoToast?.("Role assigned");
+        }
+        setTimeout(() => { renderUserList().catch(() => {}); }, 250);
+      } catch (e) {
+        window.__illoToast?.(e.message || "Could not save role");
+      }
+    });
+  }
+
+  repopulateRoles();
 }
 
 export async function saveProfileChanges(pfpFile, bannerFile) {
@@ -525,6 +612,5 @@ function readAsDataURL(file) {
 }
 
 RolesService.onRolesChanged(() => {
-  // Re-render the user list so new role badges appear.
   renderUserList().catch(() => {});
 });
