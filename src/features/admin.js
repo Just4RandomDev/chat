@@ -5,13 +5,14 @@ import { db } from "../firebase/config.js";
 import { $, on, esc } from "../core/dom.js";
 import { debounce, fmtTime } from "../core/helpers.js";
 import { hashPassword } from "../core/crypto.js";
-import { state, resetRoomState } from "../core/state.js";
+import { state } from "../core/state.js";
 import { fetchUser, defaultPfp } from "../services/user-cache.js";
 import {
-  canModerate, canKick, canEditRoom, isRoomOwner,
+  canModerate, canKick, isRoomOwner,
   adminKick, adminUnkick, adminWipeMessages,
   adminUpdateRoom, adminDeleteRoom, listKicked, listMembers
 } from "./moderation.js";
+import * as RolesService from "../services/roles.js";
 
 let onLeaveRoom = null;
 let resetChatUI = null;
@@ -34,6 +35,7 @@ export function initAdminUI(hooks) {
       const map = {
         overview: "adminPaneOverview",
         members: "adminPaneMembers",
+        roles: "adminPaneRoles",
         mod: "adminPaneMod",
         room: "adminPaneRoom",
         danger: "adminPaneDanger"
@@ -46,6 +48,7 @@ export function initAdminUI(hooks) {
       if (tab.dataset.adminTab === "members") refreshMembers();
       if (tab.dataset.adminTab === "mod") refreshKicked();
       if (tab.dataset.adminTab === "room") populateRoomFields();
+      if (tab.dataset.adminTab === "roles") refreshRoles();
     });
   });
 
@@ -54,6 +57,28 @@ export function initAdminUI(hooks) {
   on($("adminRoomReset"), "click", () => { populateRoomFields(); adminToast("Fields reset"); });
   on($("adminWipeMessages"), "click", handleWipeMessages);
   on($("adminDeleteRoom"), "click", handleDeleteRoom);
+
+  on($("roleEditorSaveBtn"), "click", handleSaveRole);
+  on($("roleEditorCancelBtn"), "click", () => $("roleEditorModal").classList.add("hidden"));
+  on($("roleEditorDeleteBtn"), "click", handleDeleteRole);
+  on($("roleColorInput"), "input", () => {
+    $("roleColorHex").value = $("roleColorInput").value;
+  });
+  on($("roleColorHex"), "change", () => {
+    let v = ($("roleColorHex").value || "").trim();
+    if (!v.startsWith("#")) v = "#" + v;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+      $("roleColorInput").value = v.toLowerCase();
+      $("roleColorHex").value = v.toLowerCase();
+    } else {
+      $("roleColorHex").value = $("roleColorInput").value;
+    }
+  });
+
+  on($("adminCreateRoomRoleBtn"), "click", () => openRoleEditor("room", null));
+  on($("adminCreateGlobalRoleBtn"), "click", () => openRoleEditor("global", null));
+
+  window.__illoRefreshRoles = refreshRoles;
 }
 
 export function updateAdminUI() {
@@ -83,6 +108,7 @@ function openDrawer() {
   refreshMembers();
   refreshKicked();
   populateRoomFields();
+  refreshRoles();
 }
 
 function closeDrawer() {
@@ -340,5 +366,208 @@ async function handleDeleteRoom() {
     closeDrawer();
   } catch (e) {
     adminToast(e.message || "Delete failed", true);
+  }
+}
+
+let editingRole = null;
+
+function refreshRoles() {
+  renderRoleList("adminRoomRoleList", RolesService.getRoomRoles(), "room");
+  renderRoleList("adminGlobalRoleList", RolesService.getGlobalRoles(), "global");
+
+  const canGlobal = RolesService.canManageRoles("global");
+  const canRoom = RolesService.canManageRoles("room");
+
+  $("adminGlobalRolesSection")?.classList.toggle("hidden", !canGlobal && RolesService.getGlobalRoles().length === 0);
+  $("adminGlobalRolesHint")?.classList.toggle("hidden", canGlobal);
+  $("adminGlobalRolesActions")?.classList.toggle("hidden", !canGlobal);
+  $("adminCreateRoomRoleBtn")?.classList.toggle("hidden", !canRoom);
+  $("adminRoomRolesHint").textContent = canRoom
+    ? "Manage roles for this room."
+    : "Only the room owner or a global admin can manage room roles.";
+}
+
+function renderRoleList(containerId, roles, scope) {
+  const container = $(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!roles.length) {
+    const p = document.createElement("div");
+    p.className = "admin-role-empty";
+    p.textContent = "No roles yet.";
+    container.appendChild(p);
+    return;
+  }
+
+  const canManage = RolesService.canManageRoles(scope);
+
+  for (const role of roles) {
+    const card = document.createElement("div");
+    card.className = "admin-role-card";
+
+    const swatch = document.createElement("div");
+    swatch.className = "admin-role-swatch";
+    swatch.style.background = role.color || "#6fc77f";
+    card.appendChild(swatch);
+
+    const meta = document.createElement("div");
+    meta.className = "admin-role-meta";
+
+    const name = document.createElement("div");
+    name.className = "admin-role-name";
+    name.textContent = role.name || role.id;
+    if (role.isDefault) {
+      const tag = document.createElement("span");
+      tag.className = "admin-role-default-tag";
+      tag.textContent = "default";
+      name.appendChild(tag);
+    }
+    meta.appendChild(name);
+
+    const permsRow = document.createElement("div");
+    permsRow.className = "admin-role-perms";
+    const permLabels = {
+      kick: "kick",
+      wipe: "wipe",
+      editRoom: "edit",
+      deleteRoom: "delete",
+      manageRoles: "roles"
+    };
+    for (const [k, label] of Object.entries(permLabels)) {
+      const pill = document.createElement("span");
+      pill.className = "admin-role-perm-pill" + (role.permissions?.[k] ? " on" : "");
+      pill.textContent = label;
+      permsRow.appendChild(pill);
+    }
+    meta.appendChild(permsRow);
+    card.appendChild(meta);
+
+    const orderTag = document.createElement("div");
+    orderTag.className = "admin-role-order-tag";
+    orderTag.textContent = "#" + (role.order ?? 0);
+    card.appendChild(orderTag);
+
+    const actions = document.createElement("div");
+    actions.className = "admin-role-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "admin-btn";
+    editBtn.textContent = "Edit";
+    if (!canManage) {
+      editBtn.disabled = true;
+    } else {
+      editBtn.addEventListener("click", () => openRoleEditor(scope, role.id));
+    }
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+
+    container.appendChild(card);
+  }
+}
+
+function openRoleEditor(scope, roleId) {
+  editingRole = { scope, roleId, isNew: !roleId };
+
+  const isNew = !roleId;
+  const role = isNew ? null : (scope === "global"
+    ? RolesService.getGlobalRole(roleId)
+    : RolesService.getRoomRole(roleId));
+
+  if (!isNew && !role) {
+    adminToast("Role not found", true);
+    return;
+  }
+
+  const title = $("roleEditorTitle");
+  const sub = $("roleEditorSubtitle");
+  const nameInput = $("roleNameInput");
+  const colorInput = $("roleColorInput");
+  const colorHex = $("roleColorHex");
+  const orderInput = $("roleOrderInput");
+  const deleteBtn = $("roleEditorDeleteBtn");
+  const errorEl = $("roleEditorError");
+
+  errorEl.textContent = "";
+
+  if (isNew) {
+    title.textContent = scope === "global" ? "New Global Role" : "New Room Role";
+    sub.textContent = "Give it a name, a color, and pick its permissions.";
+    nameInput.value = "";
+    colorInput.value = "#6fc77f";
+    colorHex.value = "#6fc77f";
+    orderInput.value = "10";
+    $("rolePermKick").checked = false;
+    $("rolePermWipe").checked = false;
+    $("rolePermEditRoom").checked = false;
+    $("rolePermDeleteRoom").checked = false;
+    $("rolePermManageRoles").checked = false;
+    deleteBtn.classList.add("hidden");
+  } else {
+    title.textContent = "Edit Role";
+    sub.textContent = "Changes apply immediately.";
+    nameInput.value = role.name || "";
+    const c = role.color || "#6fc77f";
+    colorInput.value = c;
+    colorHex.value = c;
+    orderInput.value = String(role.order ?? 0);
+    $("rolePermKick").checked = !!role.permissions?.kick;
+    $("rolePermWipe").checked = !!role.permissions?.wipe;
+    $("rolePermEditRoom").checked = !!role.permissions?.editRoom;
+    $("rolePermDeleteRoom").checked = !!role.permissions?.deleteRoom;
+    $("rolePermManageRoles").checked = !!role.permissions?.manageRoles;
+    deleteBtn.classList.toggle("hidden", !!role.isDefault);
+  }
+
+  $("roleEditorModal").classList.remove("hidden");
+}
+
+async function handleSaveRole() {
+  if (!editingRole) return;
+  $("roleEditorError").textContent = "";
+
+  const payload = {
+    name: $("roleNameInput").value.trim(),
+    color: $("roleColorInput").value,
+    permissions: {
+      kick: $("rolePermKick").checked,
+      wipe: $("rolePermWipe").checked,
+      editRoom: $("rolePermEditRoom").checked,
+      deleteRoom: $("rolePermDeleteRoom").checked,
+      manageRoles: $("rolePermManageRoles").checked
+    }
+  };
+
+  if (!payload.name || payload.name.length < 2) {
+    $("roleEditorError").textContent = "Name must be at least 2 chars";
+    return;
+  }
+
+  try {
+    if (editingRole.isNew) {
+      await RolesService.createRole(editingRole.scope, payload);
+      adminToast("Role created");
+    } else {
+      await RolesService.updateRole(editingRole.scope, editingRole.roleId, payload);
+      adminToast("Role saved");
+    }
+    $("roleEditorModal").classList.add("hidden");
+    refreshRoles();
+  } catch (e) {
+    $("roleEditorError").textContent = e.message || "Could not save role";
+  }
+}
+
+async function handleDeleteRole() {
+  if (!editingRole || editingRole.isNew) return;
+  if (!confirm("Delete this role? Users with it will fall back to Member.")) return;
+
+  try {
+    await RolesService.deleteRole(editingRole.scope, editingRole.roleId);
+    adminToast("Role deleted");
+    $("roleEditorModal").classList.add("hidden");
+    refreshRoles();
+  } catch (e) {
+    $("roleEditorError").textContent = e.message || "Could not delete role";
   }
 }
