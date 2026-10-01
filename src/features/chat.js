@@ -26,6 +26,7 @@ import {
 import { isBlocked } from "./users.js";
 import { pushNotification } from "./notifications.js";
 import { hideAutocomplete } from "./mentions.js";
+import * as RolesService from "../services/roles.js";
 
 let onOpenUserProfile = null;
 
@@ -334,6 +335,18 @@ export async function renderMessage(container, msgId, msg, isOwn, isDm) {
     nameSpan.style.cursor = "pointer";
     nameSpan.addEventListener("click", () => { if (!isBot) onOpenUserProfile?.(msg.uid); });
     head.appendChild(nameSpan);
+
+    if (!isBot) {
+      const role = RolesService.getDisplayRole(msg.uid);
+      if (role) {
+        const roleBadge = document.createElement("span");
+        roleBadge.className = "role-badge chat-role-badge";
+        roleBadge.textContent = role.name;
+        roleBadge.style.background = role.color;
+        roleBadge.style.color = "#fff";
+        head.appendChild(roleBadge);
+      }
+    }
 
     if (isBot) {
       const botTag = document.createElement("span");
