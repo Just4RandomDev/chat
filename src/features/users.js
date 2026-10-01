@@ -339,7 +339,7 @@ function renderUserProfileRoleSection(uid, isSelf, isBotUser) {
   const canManageGlobal = RolesService.canManageRoles("global");
   const canManageRoom = RolesService.canManageRoles("room");
 
-  if (isSelf || isBotUser || (!canManageGlobal && !canManageRoom)) {
+  if (isBotUser || (!canManageGlobal && !canManageRoom)) {
     section.classList.add("hidden");
     return;
   }
