@@ -375,3 +375,66 @@ export function getRoleColor(scope, roleId) {
   const r = list.find(x => x.id === roleId);
   return r ? r.color : "#6fc77f";
 }
+
+// Returns the role to display for a user in the current context.
+// Room role wins over global role; global admins always show as Owner.
+// Returns { name, color, isGlobalAdmin, isRoomOwner } or null if Member.
+export function getDisplayRole(uid) {
+  if (!uid) return null;
+
+  // Global admin — show as Owner (accent color)
+  if (state.admins.includes(uid)) {
+    return {
+      id: "owner",
+      name: "Owner",
+      color: "#d94a4a",
+      isGlobalAdmin: true,
+      isRoomOwner: false
+    };
+  }
+
+  // Room owner (of the room we're currently in)
+  if (state.roomMeta && state.roomMeta.adminUid === uid) {
+    const role = roomRoles.find(r => r.id === "owner") ||
+                 globalRoles.find(r => r.id === "owner");
+    return {
+      id: "owner",
+      name: role?.name || "Owner",
+      color: role?.color || "#d94a4a",
+      isGlobalAdmin: false,
+      isRoomOwner: true
+    };
+  }
+
+  // Room role wins over global role
+  const roomRoleId = roomAssignments[uid];
+  if (roomRoleId) {
+    const role = roomRoles.find(r => r.id === roomRoleId);
+    if (role) {
+      return {
+        id: role.id,
+        name: role.name,
+        color: role.color || "#6fc77f",
+        isGlobalAdmin: false,
+        isRoomOwner: false
+      };
+    }
+  }
+
+  const globalRoleId = globalAssignments[uid];
+  if (globalRoleId) {
+    const role = globalRoles.find(r => r.id === globalRoleId);
+    if (role) {
+      return {
+        id: role.id,
+        name: role.name,
+        color: role.color || "#6fc77f",
+        isGlobalAdmin: false,
+        isRoomOwner: false
+      };
+    }
+  }
+
+  // Member — return null so callers can decide whether to render anything
+  return null;
+}
