@@ -218,9 +218,9 @@ export function getDisplayRole(uid) {
 
   if (state.admins.includes(uid)) {
     return {
-      id: "owner",
-      name: "Owner",
-      color: "#d94a4a",
+      id: "furry",
+      name: "Furry UwU",
+      color: "#94e4ff",
       isGlobalAdmin: true,
       isRoomOwner: false
     };
