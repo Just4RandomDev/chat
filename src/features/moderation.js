@@ -8,6 +8,7 @@ import { state } from "../core/state.js";
 import { fetchUser } from "../services/user-cache.js";
 import { sendBotMessage } from "../services/bot.js";
 import { hashPassword } from "../core/crypto.js";
+import * as RolesService from "../services/roles.js";
 
 export function isRoomOwner() {
   return !!(state.me && state.roomMeta && state.roomMeta.adminUid === state.me.uid);
@@ -17,20 +18,27 @@ export function isGlobalAdmin() {
   return !!(state.me && state.admins.includes(state.me.uid));
 }
 
-export function canModerate() {
-  return isRoomOwner() || isGlobalAdmin();
-}
-
 export function isPublicRoom() {
   return !!(state.roomMeta && (state.roomMeta.isPublic || state.roomCode === PUBLIC_ROOM));
 }
 
+export function canModerate() {
+  if (!state.me) return false;
+  const perms = RolesService.getMyPermissions();
+  return perms.kick || perms.wipe || perms.editRoom || perms.deleteRoom || perms.manageRoles;
+}
+
 export function canKick() {
-  return canModerate() && !isPublicRoom();
+  if (!state.me) return false;
+  if (isPublicRoom() && !isGlobalAdmin()) return false;
+  return RolesService.getMyPermissions().kick;
 }
 
 export function canEditRoom() {
-  return canModerate() && !isPublicRoom();
+  if (!state.me) return false;
+  if (isPublicRoom() && !isGlobalAdmin()) return false;
+  const perms = RolesService.getMyPermissions();
+  return perms.editRoom || perms.wipe || perms.deleteRoom;
 }
 
 export async function adminKick(uid) {
