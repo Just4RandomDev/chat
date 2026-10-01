@@ -1,5 +1,4 @@
 // USERS
-// User list, user profiles, own profile, blocks.
 
 import { ref, get, update, remove, set } from "../firebase/database.js";
 import { db } from "../firebase/config.js";
@@ -8,6 +7,7 @@ import { STATUS_MAX, BANNER_MAX_BYTES, PFP_MAX_BYTES, PRESENCE_STALE_MS } from "
 import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
 import { fetchUser, defaultPfp, updateCached } from "../services/user-cache.js";
+import * as RolesService from "../services/roles.js";
 
 const blocked = new Set();
 let me = null;
@@ -65,8 +65,6 @@ export function applyNameColor(span, profile) {
   if (profile && profile.nameColor) span.style.color = profile.nameColor;
 }
 
-// USER LIST
-
 export async function renderUserList() {
   const userList = $("userList");
   const offlineList = $("offlineList");
@@ -96,7 +94,6 @@ export async function renderUserList() {
     profiles.set(uid, p);
   }));
 
-  // Deduplicate by username
   const byName = new Map();
   for (const uid of allUids) {
     if (uid === state.me?.uid) continue;
@@ -116,14 +113,8 @@ export async function renderUserList() {
   const onlineList = [];
   const offlineListItems = [];
 
-  // BOT — always shown as online, at the top of the list (above self).
   const bot = await fetchUser("system");
-  onlineList.push({
-    uid: "system",
-    profile: bot,
-    isSelf: false,
-    isBot: true
-  });
+  onlineList.push({ uid: "system", profile: bot, isSelf: false, isBot: true });
 
   if (state.me) {
     onlineList.push({
@@ -149,7 +140,7 @@ export async function renderUserList() {
   }
 
   const sortFn = (a, b) => {
-    if (a.isBot) return -1;   // bot always first
+    if (a.isBot) return -1;
     if (b.isBot) return 1;
     if (a.isSelf) return -1;
     if (b.isSelf) return 1;
@@ -272,8 +263,6 @@ export function wireUserListEvents(onUserClick) {
   });
 }
 
-// USER PROFILE MODAL
-
 export async function openUserProfile(uid, opts = {}) {
   if (!uid) return;
   state.viewedUid = uid;
@@ -338,10 +327,85 @@ export async function openUserProfile(uid, opts = {}) {
   const canKickHere = !isSelf && !isBotUser && opts.canKick?.();
   kickBtn.classList.toggle("hidden", !canKickHere);
 
+  renderUserProfileRoleSection(uid, isSelf, isBotUser);
+
   $("userProfileModal").classList.remove("hidden");
 }
 
-// OWN PROFILE
+function renderUserProfileRoleSection(uid, isSelf, isBotUser) {
+  const section = $("userProfileRoleSection");
+  if (!section) return;
+
+  const canManageGlobal = RolesService.canManageRoles("global");
+  const canManageRoom = RolesService.canManageRoles("room");
+
+  if (isSelf || isBotUser || (!canManageGlobal && !canManageRoom)) {
+    section.classList.add("hidden");
+    return;
+  }
+  section.classList.remove("hidden");
+
+  const scopeSel = $("userProfileRoleScope");
+
+  Array.from(scopeSel.options).forEach(opt => {
+    if (opt.value === "global") opt.disabled = !canManageGlobal;
+    if (opt.value === "room") opt.disabled = !canManageRoom;
+  });
+
+  scopeSel.value = canManageRoom ? "room" : "global";
+
+  const repopulateRoles = () => {
+    const scope = $("userProfileRoleScope").value;
+    const roles = scope === "global"
+      ? RolesService.getGlobalRoles()
+      : RolesService.getRoomRoles();
+    const current = scope === "global"
+      ? RolesService.getGlobalAssignment(uid)
+      : RolesService.getRoomAssignment(uid);
+
+    const roleSel = $("userProfileRoleSelect");
+    roleSel.innerHTML = "";
+
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "";
+    noneOpt.textContent = "— No role —";
+    roleSel.appendChild(noneOpt);
+
+    for (const r of roles) {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      opt.textContent = r.name + (r.isDefault ? "" : " *");
+      roleSel.appendChild(opt);
+    }
+
+    roleSel.value = current || "";
+  };
+
+  const newScopeSel = scopeSel.cloneNode(true);
+  scopeSel.parentNode.replaceChild(newScopeSel, scopeSel);
+  newScopeSel.addEventListener("change", repopulateRoles);
+
+  const saveBtn = $("userProfileRoleSaveBtn");
+  const newSaveBtn = saveBtn.cloneNode(true);
+  saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+  newSaveBtn.addEventListener("click", async () => {
+    const scope = newScopeSel.value;
+    const roleId = $("userProfileRoleSelect").value;
+    try {
+      if (!roleId) {
+        await RolesService.unassignRole(scope, uid);
+        window.__illoToast?.("Role removed");
+      } else {
+        await RolesService.assignRole(scope, uid, roleId);
+        window.__illoToast?.("Role assigned");
+      }
+    } catch (e) {
+      window.__illoToast?.(e.message || "Could not assign role");
+    }
+  });
+
+  repopulateRoles();
+}
 
 export function openMyProfile(opts = {}) {
   const m = state.me;
