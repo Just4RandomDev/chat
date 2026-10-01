@@ -748,3 +748,11 @@
 .user-profile-role-save:hover {
   background: var(--accent-hover);
 }
+
+.user-profile-role-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 8px;
+  line-height: 1.4;
+}
