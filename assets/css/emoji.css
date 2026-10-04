@@ -396,8 +396,8 @@
 
 .msg-line .custom-emoji-inline {
   display: inline-block;
-  width: 22px;
-  height: 22px;
+  width: 40px;
+  height: 40px;
   vertical-align: middle;
   object-fit: contain;
   margin: 0 2px;
